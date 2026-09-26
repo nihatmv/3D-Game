@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { HALF, MAX_LEVEL, MAX_STONE, TILE_COUNT, TileType } from '../world/constants'
 import { N8, idx, inBounds, initialIsland } from '../world/grid'
 import { computePondLevels } from '../world/ponds'
+import { computeTerrainField, type TerrainField } from '../world/terrainField'
 import { MAX_PLANTS, isTree, plantRules, type PlantKind } from '../world/plantRules'
 
 export type Tool = 'soil' | 'stone' | 'water' | 'seeds'
@@ -28,6 +29,8 @@ type IslandState = {
   type: Uint8Array
   /** Pond water surface y per tile, NaN where dry. Derived from height/type. */
   pondLevel: Float32Array
+  /** Smooth terrain layers derived from height/type (shape, ground height queries). */
+  field: TerrainField
   terrainVersion: number
   /** Stone pieces stacked on each tile (0..MAX_STONE). Watch stoneVersion. */
   stones: Uint8Array
@@ -70,7 +73,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
   const commitTerrain = () => {
     const { height, type, pondLevel, terrainVersion } = get()
     computePondLevels(height, type, pondLevel)
-    set({ terrainVersion: terrainVersion + 1 })
+    set({ field: computeTerrainField(height, type), terrainVersion: terrainVersion + 1 })
   }
 
   const commitStones = () => set({ stoneVersion: get().stoneVersion + 1 })
@@ -101,6 +104,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
   return {
     ...initial,
     pondLevel: initialPonds,
+    field: computeTerrainField(initial.height, initial.type),
     terrainVersion: 0,
     stones: new Uint8Array(TILE_COUNT),
     stoneVersion: 0,

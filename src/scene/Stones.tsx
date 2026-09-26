@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import { BufferGeometry, Color, IcosahedronGeometry, InstancedMesh, Object3D, Vector3 } from 'three'
 import { RoundedBoxGeometry } from 'three-stdlib'
 import { useIslandStore } from '../store/useIslandStore'
-import { GRID, MAX_STONE, PALETTE, TILE_COUNT, surfaceY, tileMin } from '../world/constants'
+import { GRID, MAX_STONE, PALETTE, TILE_COUNT, tileMin } from '../world/constants'
+import { groundAt } from '../world/terrainField'
 import { hash2, idx } from '../world/grid'
 import { BLOCKS, BLOCK_NEST, BOULDER_RADIUS, BOULDER_SINK, BOULDER_SQUASH, boulderTop } from '../world/stones'
 import { requestShadowUpdate, wake } from './perf'
@@ -75,7 +76,7 @@ export function Stones() {
     const bm = boulders.current
     const km = blocks.current
     if (!bm || !km) return
-    const { stones, height, type } = useIslandStore.getState()
+    const { stones, field } = useIslandStore.getState()
     const now = performance.now()
     for (let i = 0; i < TILE_COUNT; i++) if (stones[i] > prevStones[i]) popStart.set(i, now)
     prevStones.set(stones)
@@ -108,9 +109,9 @@ export function Stones() {
         const i = idx(x, z)
         const count = stones[i]
         if (count === 0) continue
-        const ground = surfaceY(height[i], type[i])
         const cx = tileMin(x) + 0.5
         const cz = tileMin(z) + 0.5
+        const ground = groundAt(field, cx, cz)
 
         // Boulder.
         const s = 0.9 + hash2(x, z) * 0.2

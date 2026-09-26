@@ -1,26 +1,29 @@
 import { BufferAttribute, BufferGeometry, Color } from 'three'
-import { BEVEL, GRID, ISLAND_BOTTOM, PALETTE, SEA_Y, TileType, surfaceY, tileMin } from './constants'
-import { hash2, idx, inBounds } from './grid'
+import { BEVEL, GRID, HALF, ISLAND_BOTTOM, PALETTE, SEA_Y, TileType } from './constants'
+import { hash2 } from './grid'
+import { NS, RES, bevelDrop, sampleCoord, type TerrainField } from './terrainField'
 
 /**
- * Builds the island terrain as one flat-shaded, vertex-coloured mesh.
+ * Builds the island mesh from smooth terrain layers (see terrainField.ts).
  *
- * Each land tile's top is a 4x4 grid of sub-vertices at offsets [0, b, 1-b, 1].
- * Border sub-vertices drop by `b` where a neighbour (edge or corner) is lower,
- * which yields a chamfer ring. Where a neighbour is lower, a wall runs from this
- * tile's border down to the neighbour's matching border vertices, so the mesh
- * stays watertight at every step. Walls are banded into strata colours.
+ * For each layer, marching squares over the fine sample grid gives:
+ *  - the filled top surface (with a soft bevel dipping toward the outline),
+ *  - the outline segments, extruded down into strata-banded walls.
+ * Cells fully covered by the next layer up are skipped.
+ *
+ * Every vertex also carries `aAnim = (tile, weight, gap)`: which tile it
+ * belongs to, how strongly it follows that tile's animated height offset (1 at
+ * the top, 0 at a wall's base), and how far its layer sits below the tile's own
+ * surface. Edits then glide in the vertex shader without rebuilds.
  */
 
-const S = [0, BEVEL, 1 - BEVEL, 1]
 const STRATA_H = 0.25
 const LIP_H = 0.06
-const JITTER = 0.05
 
 const colGrass = new Color(PALETTE.grass)
 const colSand = new Color(PALETTE.sand)
 const colSoil = new Color(PALETTE.soil)
-const colStoneTop = new Color(PALETTE.stone)
+const colStone = new Color(PALETTE.stone)
 const colPondBed = new Color(PALETTE.pondBed)
 const colWetSand = new Color(PALETTE.wetSand)
 const colStrata = PALETTE.strata.map((c) => new Color(c))
@@ -31,7 +34,7 @@ export function topColor(level: number, type: number, out: Color): Color {
       return out.copy(colSoil)
     case TileType.Stone:
       // Stones sit on the natural ground; just a hint of grey around them.
-      return out.copy(level <= 1 ? colSand : colGrass).lerp(colStoneTop, 0.12)
+      return out.copy(level <= 1 ? colSand : colGrass).lerp(colStone, 0.12)
     case TileType.Water:
       return out.copy(colPondBed)
     default:
@@ -39,84 +42,58 @@ export function topColor(level: number, type: number, out: Color): Color {
   }
 }
 
-/** Growable float buffer so we avoid JS array push overhead. */
-class FloatBuf {
-  data = new Float32Array(1 << 16)
+/** Growable typed buffer. */
+class Buf<T extends Float32Array | Uint32Array> {
   length = 0
-  reset() {
-    this.length = 0
+  data: T
+  constructor(data: T) {
+    this.data = data
   }
-  push3(a: number, b: number, c: number) {
+  push(a: number, b?: number, c?: number) {
     if (this.length + 3 > this.data.length) {
-      const next = new Float32Array(this.data.length * 2)
+      const next = new (this.data.constructor as { new (n: number): T })(this.data.length * 2)
       next.set(this.data)
       this.data = next
     }
-    const d = this.data
-    d[this.length++] = a
-    d[this.length++] = b
-    d[this.length++] = c
+    this.data[this.length++] = a
+    if (b !== undefined) this.data[this.length++] = b
+    if (c !== undefined) this.data[this.length++] = c
   }
-  slice() {
-    return this.data.slice(0, this.length)
+  slice(): T {
+    return this.data.slice(0, this.length) as T
   }
 }
 
-const pos = new FloatBuf()
-const nor = new FloatBuf()
-const col = new FloatBuf()
+const pos = new Buf(new Float32Array(1 << 16))
+const col = new Buf(new Float32Array(1 << 16))
+const anim = new Buf(new Float32Array(1 << 16))
+const index = new Buf(new Uint32Array(1 << 16))
 
-const jitterX = (x: number, z: number) => (hash2(Math.round(x * 100), Math.round(z * 100)) - 0.5) * 2 * JITTER
-const jitterZ = (x: number, z: number) => (hash2(Math.round(z * 100) + 7919, Math.round(x * 100)) - 0.5) * 2 * JITTER
+let vertexCount = 0
+/** Surface y of the layer being built; each vertex records its gap below its tile's surface. */
+let layerValue = 0
+let tileSurfRef: Float32Array = new Float32Array(0)
+function vertex(x: number, y: number, z: number, c: Color, tile: number, weight: number): number {
+  pos.push(x, y, z)
+  col.push(c.r, c.g, c.b)
+  anim.push(tile, weight, Math.max(0, tileSurfRef[tile] - layerValue))
+  return vertexCount++
+}
 
-/**
- * Push a triangle (positions pre-jitter), flipping winding so its face normal
- * agrees with the hint (nx, ny, nz). Degenerate triangles are dropped.
- */
-function tri(
-  ax: number, ay: number, az: number,
-  bx: number, by: number, bz: number,
-  cx: number, cy: number, cz: number,
-  nx: number, ny: number, nz: number,
-  color: Color,
-) {
-  const ux = bx - ax, uy = by - ay, uz = bz - az
-  const vx = cx - ax, vy = cy - ay, vz = cz - az
-  let fx = uy * vz - uz * vy
-  let fy = uz * vx - ux * vz
-  let fz = ux * vy - uy * vx
-  if (Math.abs(fx) + Math.abs(fy) + Math.abs(fz) < 1e-9) return
-  const flip = fx * nx + fy * ny + fz * nz < 0
-
-  // Jitter xz by position so shared vertices stay welded.
-  const Ax = ax + jitterX(ax, az), Az = az + jitterZ(ax, az)
-  let Bx = bx + jitterX(bx, bz), Bz = bz + jitterZ(bx, bz), By = by
-  let Cx = cx + jitterX(cx, cz), Cz = cz + jitterZ(cx, cz), Cy = cy
-  if (flip) {
-    let t = Bx; Bx = Cx; Cx = t
-    t = By; By = Cy; Cy = t
-    t = Bz; Bz = Cz; Cz = t
-  }
-  // Flat normal from the final (jittered) triangle.
-  const px = Bx - Ax, py = By - ay, pz = Bz - Az
-  const qx = Cx - Ax, qy = Cy - ay, qz = Cz - Az
-  fx = py * qz - pz * qy
-  fy = pz * qx - px * qz
-  fz = px * qy - py * qx
-  const len = Math.hypot(fx, fy, fz) || 1
-  fx /= len; fy /= len; fz /= len
-
-  pos.push3(Ax, ay, Az)
-  pos.push3(Bx, By, Bz)
-  pos.push3(Cx, Cy, Cz)
-  for (let k = 0; k < 3; k++) {
-    nor.push3(fx, fy, fz)
-    col.push3(color.r, color.g, color.b)
-  }
+/** Add a triangle, flipping winding so its face normal agrees with the hint. */
+function tri(a: number, b: number, c: number, nx: number, ny: number, nz: number) {
+  const p = pos.data
+  const ux = p[b * 3] - p[a * 3], uy = p[b * 3 + 1] - p[a * 3 + 1], uz = p[b * 3 + 2] - p[a * 3 + 2]
+  const vx = p[c * 3] - p[a * 3], vy = p[c * 3 + 1] - p[a * 3 + 1], vz = p[c * 3 + 2] - p[a * 3 + 2]
+  const fx = uy * vz - uz * vy
+  const fy = uz * vx - ux * vz
+  const fz = ux * vy - uy * vx
+  if (Math.abs(fx) + Math.abs(fy) + Math.abs(fz) < 1e-10) return
+  if (fx * nx + fy * ny + fz * nz >= 0) index.push(a, b, c)
+  else index.push(a, c, b)
 }
 
 const tmp = new Color()
-const top = new Color()
 const lip = new Color()
 
 function strataColor(yMid: number, out: Color): Color {
@@ -126,160 +103,228 @@ function strataColor(yMid: number, out: Color): Color {
   return out
 }
 
-/**
- * Wall between points A and B along a tile edge. `yt` is the (flat) top,
- * `ybA`/`ybB` are the neighbour's border heights, (nx, nz) the outward normal.
- */
-function wall(
-  ax: number, az: number, bx: number, bz: number,
-  ytA: number, ytB: number, ybA: number, ybB: number,
-  nx: number, nz: number,
-) {
-  const yMaxB = Math.max(ybA, ybB)
-  const yt = Math.min(ytA, ytB)
-  if (Math.max(ytA - ybA, ytB - ybB) < 1e-4) return
-  // The first band starts from the (possibly sloped) top edge.
-  let yPrevA = ytA
-  let yPrevB = ytB
-  let yPrev = yt
-  let first = true
-  const emitBand = (y: number, c: Color) => {
-    tri(ax, yPrevA, az, bx, yPrevB, bz, ax, y, az, nx, 0, nz, c)
-    tri(bx, yPrevB, bz, bx, y, bz, ax, y, az, nx, 0, nz, c)
-    yPrev = yPrevA = yPrevB = y
-    first = false
-  }
-  // Thin grass-coloured lip, then horizontal strata bands.
-  if (yt - LIP_H > yMaxB + 1e-3) emitBand(yt - LIP_H, lip)
-  for (let k = Math.floor((yt - LIP_H) / STRATA_H); k * STRATA_H > yMaxB + 1e-3; k--) {
-    const y = k * STRATA_H
-    if (y < yPrev - 1e-3) emitBand(y, strataColor((yPrev + y) / 2, tmp))
-  }
-  // Last band follows the neighbour's (possibly sloped) border.
-  const c = first ? lip : strataColor((yPrev + yMaxB) / 2, tmp)
-  tri(ax, yPrevA, az, bx, yPrevB, bz, ax, ybA, az, nx, 0, nz, c)
-  tri(bx, yPrevB, bz, bx, ybB, bz, ax, ybA, az, nx, 0, nz, c)
-}
+// Per-layer vertex caches: corner samples and edge crossings are shared.
+const cornerIdx = new Int32Array(NS * NS)
+const edgeH = new Int32Array(NS * NS) // crossing on edge (u,r)-(u+1,r)
+const edgeV = new Int32Array(NS * NS) // crossing on edge (u,r)-(u,r+1)
+const STEP = 1 / RES // world distance between samples
+const tileCols = new Float32Array(GRID * GRID * 3)
+const ins = [false, false, false, false]
+const poly: number[] = []
+const isCross: boolean[] = []
 
-const ys = new Float32Array(16)
-const SIDES = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const
+export function buildTerrainGeometry(height: Uint8Array, type: Uint8Array, tf: TerrainField): BufferGeometry {
+  pos.length = col.length = anim.length = index.length = 0
+  vertexCount = 0
+  const { values, fields, tileSurf } = tf
+  tileSurfRef = tileSurf
 
-/** Surface y used for ocean tiles when animating (fully sunk below the island base). */
-export const OCEAN_Y = ISLAND_BOTTOM
-/** Tiles whose (animated) surface is below this are treated as open ocean. */
-const LAND_CUTOFF = ISLAND_BOTTOM + 0.15
-
-/** Resting surface y of every tile (ocean tiles get OCEAN_Y). */
-export function targetSurfaces(height: Uint8Array, type: Uint8Array, out: Float32Array): Float32Array {
-  for (let i = 0; i < out.length; i++) out[i] = height[i] > 0 ? surfaceY(height[i], type[i]) : OCEAN_Y
-  return out
-}
-
-/**
- * `surf` optionally overrides each tile's surface y (used to animate height
- * changes); `height`/`type` still decide colours.
- */
-export function buildTerrainGeometry(height: Uint8Array, type: Uint8Array, surf?: Float32Array): BufferGeometry {
-  pos.reset()
-  nor.reset()
-  col.reset()
-
-  /** Ground surface y of a tile; -Infinity for ocean (and outside the grid). */
-  const h = (x: number, z: number) => {
-    if (!inBounds(x, z)) return -Infinity
-    const i = idx(x, z)
-    if (surf) return surf[i] > LAND_CUTOFF ? surf[i] : -Infinity
-    return height[i] > 0 ? surfaceY(height[i], type[i]) : -Infinity
-  }
-
-  /** y of sub-vertex (i, j) of land tile (x, z). */
-  const subY = (x: number, z: number, i: number, j: number): number => {
-    const hh = h(x, z)
-    const ex = i === 0 ? -1 : i === 3 ? 1 : 0
-    const ez = j === 0 ? -1 : j === 3 ? 1 : 0
-    // The highest of the lower neighbours sharing this vertex decides the
-    // bevel: at most half the height gap, so the edge never dips below a
-    // neighbour's surface (matters mid-animation, when gaps can be tiny).
-    let any = false
-    let lowMax = -Infinity
-    const consider = (n: number) => {
-      if (n < hh) {
-        any = true
-        if (n > lowMax) lowMax = n
-      }
-    }
-    if (ex !== 0) consider(h(x + ex, z))
-    if (ez !== 0) consider(h(x, z + ez))
-    if (ex !== 0 && ez !== 0) consider(h(x + ex, z + ez))
-    if (!any) return hh
-    return hh - Math.min(BEVEL, (hh - lowMax) * 0.5)
-  }
-
-  for (let z = 0; z < GRID; z++) {
-    for (let x = 0; x < GRID; x++) {
-      const level = height[idx(x, z)]
-      const hh = h(x, z)
-      if (hh === -Infinity) continue
-      const x0 = tileMin(x)
-      const z0 = tileMin(z)
-
-      topColor(level, type[idx(x, z)], top).multiplyScalar(0.96 + hash2(x, z) * 0.08)
-      lip.copy(top).multiplyScalar(0.82)
-
-      for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) ys[j * 4 + i] = subY(x, z, i, j)
-
-      // Top surface: 3x3 quads.
-      for (let j = 0; j < 3; j++) {
-        const za = z0 + S[j]
-        const zc = z0 + S[j + 1]
-        for (let i = 0; i < 3; i++) {
-          const xa = x0 + S[i]
-          const xb = x0 + S[i + 1]
-          const ya = ys[j * 4 + i]
-          const yb = ys[j * 4 + i + 1]
-          const yc = ys[(j + 1) * 4 + i]
-          const yd = ys[(j + 1) * 4 + i + 1]
-          // Split along the diagonal that avoids the odd-one-out vertex, so
-          // convex corners get a flat triangle and concave ones a small dimple.
-          const oddIsBorC = ya === yd && (yb !== ya || yc !== ya)
-          if (oddIsBorC) {
-            tri(xa, ya, za, xa, yc, zc, xb, yd, zc, 0, 1, 0, top)
-            tri(xa, ya, za, xb, yd, zc, xb, yb, za, 0, 1, 0, top)
-          } else {
-            tri(xa, ya, za, xa, yc, zc, xb, yb, za, 0, 1, 0, top)
-            tri(xb, yb, za, xa, yc, zc, xb, yd, zc, 0, 1, 0, top)
-          }
+  /** The tile a point on layer value `v` belongs to: the nearest tile at least that high. */
+  const assignTile = (x: number, z: number, v: number): number => {
+    const tx = Math.floor(x + HALF)
+    const tz = Math.floor(z + HALF)
+    if (tx >= 0 && tz >= 0 && tx < GRID && tz < GRID && tileSurf[tz * GRID + tx] >= v - 1e-6) return tz * GRID + tx
+    let best = -1
+    let bestD = Infinity
+    for (let dz = -2; dz <= 2; dz++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const nx = tx + dx
+        const nz = tz + dz
+        if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) continue
+        const i = nz * GRID + nx
+        if (tileSurf[i] < v - 1e-6) continue
+        const d = (nx - HALF + 0.5 - x) ** 2 + (nz - HALF + 0.5 - z) ** 2
+        if (d < bestD) {
+          bestD = d
+          best = i
         }
       }
+    }
+    return best >= 0 ? best : Math.min(GRID - 1, Math.max(0, tz)) * GRID + Math.min(GRID - 1, Math.max(0, tx))
+  }
 
-      // Walls where the neighbour is lower.
-      for (const [dx, dz] of SIDES) {
-        const nx = x + dx
-        const nz = z + dz
-        const nh = h(nx, nz)
-        if (nh >= hh) continue
-        for (let k = 0; k < 3; k++) {
-          // Walk along the edge; the neighbour's matching border row/column
-          // gives the wall's bottom so the seam is watertight.
-          if (dz !== 0) {
-            const j = dz < 0 ? 0 : 3
-            const ez = z0 + S[j]
-            wall(
-              x0 + S[k], ez, x0 + S[k + 1], ez, ys[j * 4 + k], ys[j * 4 + k + 1],
-              nh > -Infinity ? subY(nx, nz, k, 3 - j) : ISLAND_BOTTOM,
-              nh > -Infinity ? subY(nx, nz, k + 1, 3 - j) : ISLAND_BOTTOM,
-              dx, dz,
-            )
-          } else {
-            const i = dx < 0 ? 0 : 3
-            const ex = x0 + S[i]
-            wall(
-              ex, z0 + S[k], ex, z0 + S[k + 1], ys[k * 4 + i], ys[(k + 1) * 4 + i],
-              nh > -Infinity ? subY(nx, nz, 3 - i, k) : ISLAND_BOTTOM,
-              nh > -Infinity ? subY(nx, nz, 3 - i, k + 1) : ISLAND_BOTTOM,
-              dx, dz,
-            )
+  // Per-tile top colours, computed once per build.
+  for (let i = 0; i < GRID * GRID; i++) {
+    topColor(height[i], type[i], tmp).multiplyScalar(0.96 + hash2(i % GRID, (i / GRID) | 0) * 0.08)
+    tileCols[i * 3] = tmp.r
+    tileCols[i * 3 + 1] = tmp.g
+    tileCols[i * 3 + 2] = tmp.b
+  }
+  const tileTop = (tile: number, out: Color) => out.setRGB(tileCols[tile * 3], tileCols[tile * 3 + 1], tileCols[tile * 3 + 2])
+
+  /**
+   * Colour for a top vertex on layer `v`: the nearest tile whose own surface IS
+   * this layer (so the ground around a raised tile keeps its grass/sand colour
+   * instead of taking the raised tile's soil colour).
+   */
+  const layerColor = (x: number, z: number, v: number, owner: number, out: Color): Color => {
+    if (Math.abs(tileSurf[owner] - v) < 1e-6) return tileTop(owner, out)
+    const tx = Math.floor(x + HALF)
+    const tz = Math.floor(z + HALF)
+    let best = owner
+    let bestD = Infinity
+    for (let dz = -2; dz <= 2; dz++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const nx = tx + dx
+        const nz = tz + dz
+        if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) continue
+        const i = nz * GRID + nx
+        if (Math.abs(tileSurf[i] - v) >= 1e-6) continue
+        const d = (nx - HALF + 0.5 - x) ** 2 + (nz - HALF + 0.5 - z) ** 2
+        if (d < bestD) {
+          bestD = d
+          best = i
+        }
+      }
+    }
+    return tileTop(best, out)
+  }
+
+  for (let k = 0; k < values.length; k++) {
+    const v = values[k]
+    layerValue = v
+    const F = fields[k]
+    const Fn = k + 1 < values.length ? fields[k + 1] : null
+    const yTop = v - BEVEL
+    const yBottom = k > 0 ? values[k - 1] - BEVEL : ISLAND_BOTTOM
+    cornerIdx.fill(-1)
+    edgeH.fill(-1)
+    edgeV.fill(-1)
+
+    const corner = (u: number, r: number): number => {
+      const s = r * NS + u
+      if (cornerIdx[s] >= 0) return cornerIdx[s]
+      const x = sampleCoord(u)
+      const z = sampleCoord(r)
+      const tile = assignTile(x, z, v)
+      return (cornerIdx[s] = vertex(x, v - bevelDrop(F[s]), z, layerColor(x, z, v, tile, tmp), tile, 1))
+    }
+
+    /** Crossing on the edge from sample (u,r) to its right (horizontal) or lower (vertical) neighbour. */
+    const crossing = (u: number, r: number, horizontal: boolean): number => {
+      const s1 = r * NS + u
+      const cache = horizontal ? edgeH : edgeV
+      if (cache[s1] >= 0) return cache[s1]
+      const s2 = horizontal ? s1 + 1 : s1 + NS
+      const f1 = F[s1]
+      const f2 = F[s2]
+      const t = Math.abs(f2 - f1) < 1e-9 ? 0.5 : (0.5 - f1) / (f2 - f1)
+      const x = sampleCoord(u) + (horizontal ? t * STEP : 0)
+      const z = sampleCoord(r) + (horizontal ? 0 : t * STEP)
+      const tile = assignTile(x, z, v)
+      return (cache[s1] = vertex(x, yTop, z, layerColor(x, z, v, tile, tmp), tile, 1))
+    }
+
+    /** Extrude an outline segment between two crossing vertices into a banded wall. */
+    const wall = (ia: number, ib: number, nx: number, nz: number) => {
+      const p = pos.data
+      const ax = p[ia * 3], az = p[ia * 3 + 2]
+      const bx = p[ib * 3], bz = p[ib * 3 + 2]
+      const ta = anim.data[ia * 3]
+      const tb = anim.data[ib * 3]
+      tileTop(ta, lip).multiplyScalar(0.82)
+      const cuts: number[] = [yTop]
+      if (yTop - LIP_H > yBottom + 1e-3) cuts.push(yTop - LIP_H)
+      for (let s = Math.floor((yTop - LIP_H) / STRATA_H); s * STRATA_H > yBottom + 1e-3; s--) {
+        const y = s * STRATA_H
+        if (y < cuts[cuts.length - 1] - 1e-3) cuts.push(y)
+      }
+      cuts.push(yBottom)
+      const span = yTop - yBottom
+      for (let c = 0; c + 1 < cuts.length; c++) {
+        const y0 = cuts[c]
+        const y1 = cuts[c + 1]
+        const color = c === 0 && cuts.length > 2 ? lip : strataColor((y0 + y1) / 2, tmp)
+        const w0 = (y0 - yBottom) / span
+        const w1 = (y1 - yBottom) / span
+        const a0 = vertex(ax, y0, az, color, ta, w0)
+        const b0 = vertex(bx, y0, bz, color, tb, w0)
+        const a1 = vertex(ax, y1, az, color, ta, w1)
+        const b1 = vertex(bx, y1, bz, color, tb, w1)
+        tri(a0, b0, a1, nx, 0, nz)
+        tri(b0, b1, a1, nx, 0, nz)
+      }
+    }
+
+    const cornerAt = (q: number, u: number, r: number) =>
+      q === 0 ? corner(u, r) : q === 1 ? corner(u + 1, r) : q === 2 ? corner(u + 1, r + 1) : corner(u, r + 1)
+    const edgeAt = (q: number, u: number, r: number) =>
+      q === 0 ? crossing(u, r, true) : q === 1 ? crossing(u + 1, r, false) : q === 2 ? crossing(u, r + 1, true) : crossing(u, r, false)
+
+    // Only scan the rows/columns this layer actually touches.
+    let r0 = NS, r1 = -1, u0 = NS, u1 = -1
+    for (let r = 0; r < NS; r++) {
+      for (let u = 0; u < NS; u++) {
+        if (F[r * NS + u] < 0.5) continue
+        if (r < r0) r0 = r
+        if (r > r1) r1 = r
+        if (u < u0) u0 = u
+        if (u > u1) u1 = u
+      }
+    }
+    r0 = Math.max(0, r0 - 1)
+    u0 = Math.max(0, u0 - 1)
+    r1 = Math.min(NS - 2, r1)
+    u1 = Math.min(NS - 2, u1)
+
+    for (let r = r0; r <= r1; r++) {
+      for (let u = u0; u <= u1; u++) {
+        const sa = r * NS + u
+        const fa = F[sa], fb = F[sa + 1], fc = F[sa + NS + 1], fd = F[sa + NS]
+        const ina = fa >= 0.5, inb = fb >= 0.5, inc = fc >= 0.5, ind = fd >= 0.5
+        if (!ina && !inb && !inc && !ind) continue
+        // Hidden under the next layer up: skip entirely.
+        if (Fn && Fn[sa] >= 0.52 && Fn[sa + 1] >= 0.52 && Fn[sa + NS + 1] >= 0.52 && Fn[sa + NS] >= 0.52) continue
+
+        // Outward direction = against the field gradient.
+        const gx = fb + fc - fa - fd
+        const gz = fc + fd - fa - fb
+        const gl = Math.hypot(gx, gz) || 1
+        const ox = -gx / gl
+        const oz = -gz / gl
+
+        // Corners in order a(u,r) b(u+1,r) c(u+1,r+1) d(u,r+1), edge q runs corner q -> q+1.
+        ins[0] = ina
+        ins[1] = inb
+        ins[2] = inc
+        ins[3] = ind
+
+        const saddle = ina === inc && inb === ind && ina !== inb
+        const center = (fa + fb + fc + fd) / 4
+        if (saddle && center < 0.5) {
+          // Two separate inside corners: one triangle + wall segment each.
+          for (let q = 0; q < 4; q++) {
+            if (!ins[q]) continue
+            const cIdx = cornerAt(q, u, r)
+            const eOut = edgeAt(q, u, r)
+            const eIn = edgeAt((q + 3) % 4, u, r)
+            tri(cIdx, eOut, eIn, 0, 1, 0)
+            const p = pos.data
+            // Local outward normal for this corner piece: away from the corner.
+            const mx = (p[eOut * 3] + p[eIn * 3]) / 2 - p[cIdx * 3]
+            const mz = (p[eOut * 3 + 2] + p[eIn * 3 + 2]) / 2 - p[cIdx * 3 + 2]
+            wall(eIn, eOut, mx, mz)
           }
+          continue
+        }
+
+        poly.length = 0
+        isCross.length = 0
+        for (let q = 0; q < 4; q++) {
+          if (ins[q]) {
+            poly.push(cornerAt(q, u, r))
+            isCross.push(false)
+          }
+          if (ins[q] !== ins[(q + 1) % 4]) {
+            poly.push(edgeAt(q, u, r))
+            isCross.push(true)
+          }
+        }
+        for (let t = 1; t + 1 < poly.length; t++) tri(poly[0], poly[t], poly[t + 1], 0, 1, 0)
+        // Outline segments: consecutive crossings in the walk.
+        for (let t = 0; t < poly.length; t++) {
+          const n = (t + 1) % poly.length
+          if (isCross[t] && isCross[n] && poly.length > 2) wall(poly[t], poly[n], ox, oz)
         }
       }
     }
@@ -287,8 +332,10 @@ export function buildTerrainGeometry(height: Uint8Array, type: Uint8Array, surf?
 
   const geo = new BufferGeometry()
   geo.setAttribute('position', new BufferAttribute(pos.slice(), 3))
-  geo.setAttribute('normal', new BufferAttribute(nor.slice(), 3))
   geo.setAttribute('color', new BufferAttribute(col.slice(), 3))
+  geo.setAttribute('aAnim', new BufferAttribute(anim.slice(), 3))
+  geo.setIndex(new BufferAttribute(index.slice(), 1))
+  geo.computeVertexNormals()
   geo.computeBoundingSphere()
   geo.computeBoundingBox()
   return geo

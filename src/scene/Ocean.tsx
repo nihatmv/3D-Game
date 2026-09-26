@@ -108,7 +108,7 @@ export function Ocean() {
   material.uniforms.uShore.value = shoreTex
 
   useEffect(() => {
-    updateShoreTexture(shoreTex, useIslandStore.getState().height)
+    updateShoreTexture(shoreTex, useIslandStore.getState().field)
   }, [terrainVersion, shoreTex])
 
   useEffect(() => () => {

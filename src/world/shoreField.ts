@@ -1,6 +1,6 @@
 import { DataTexture, LinearFilter, RedFormat, UnsignedByteType, ClampToEdgeWrapping } from 'three'
-import { GRID, HALF } from './constants'
-import { heightAt } from './grid'
+import { GRID, HALF, SEABED_Y } from './constants'
+import { sampleAt, type TerrainField } from './terrainField'
 
 /**
  * Distance-to-land field, sampled by the ocean shader for shallow tint and foam.
@@ -27,16 +27,17 @@ export function createShoreTexture(): DataTexture {
 const dist = new Float32Array(RES * RES)
 const blur = new Float32Array(RES * RES)
 
-export function updateShoreTexture(tex: DataTexture, height: Uint8Array): void {
+export function updateShoreTexture(tex: DataTexture, field: TerrainField): void {
   const INF = 1e6
-  // Seed: 0 on land texels.
+  // Seed: 0 on land texels, using the smooth (curved) coastline.
+  const landMin = SEABED_Y + 0.05
+  const inField = (w: number) => w > -HALF - 2 && w < HALF + 2
   for (let v = 0; v < RES; v++) {
     const wz = SHORE_MIN + (v + 0.5) / RES_PER_UNIT
-    const tz = Math.floor(wz + HALF)
     for (let u = 0; u < RES; u++) {
       const wx = SHORE_MIN + (u + 0.5) / RES_PER_UNIT
-      const tx = Math.floor(wx + HALF)
-      dist[v * RES + u] = heightAt(height, tx, tz) > 0 ? 0 : INF
+      const land = inField(wx) && inField(wz) && sampleAt(field.heights, wx, wz) > landMin
+      dist[v * RES + u] = land ? 0 : INF
     }
   }
   // Two-pass chamfer distance transform (weights 1 / sqrt2), in texels.

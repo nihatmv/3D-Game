@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, InstancedMesh, MeshLambertMaterial, Object3D } from 'three'
 import { useIslandStore, type Plant } from '../store/useIslandStore'
-import { GRID, GROW_MS, HALF, surfaceY } from '../world/constants'
+import { GRID, GROW_MS, HALF } from '../world/constants'
+import { groundAt } from '../world/terrainField'
 import { hash2 } from '../world/grid'
 import { MAX_PLANTS, PLANT_KINDS, type PlantKind } from '../world/plantRules'
 import { requestShadowUpdate, wake } from './perf'
@@ -84,7 +85,7 @@ export function Plants() {
 
   // Full rebuild whenever plants or the ground under them change.
   useLayoutEffect(() => {
-    const { plants, height, type } = useIslandStore.getState()
+    const { plants, field } = useIslandStore.getState()
     const now = performance.now()
     const counts: Record<string, number> = {}
     growing.current = []
@@ -94,7 +95,8 @@ export function Plants() {
       if (!mesh) continue
       const index = counts[p.kind] ?? 0
       counts[p.kind] = index + 1
-      const ground = surfaceY(height[p.tile], type[p.tile])
+      // Sit on the real (curved) ground under the plant, not the tile's flat level.
+      const ground = groundAt(field, (p.tile % GRID) - HALF + 0.5 + p.ox, Math.floor(p.tile / GRID) - HALF + 0.5 + p.oz)
       const t = (now - p.plantedAt) / GROW_MS
       place(mesh, index, p, ground, growth(t))
       tint.setScalar(0.9 + hash2(p.id, 7) * 0.18)
