@@ -1,0 +1,149 @@
+.toolbar-wrap {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 7px;
+  border-radius: 24px;
+  /* Solid (no backdrop blur): blurring over a live WebGL canvas is costly on weak GPUs. */
+  background: rgba(255, 250, 242, 0.93);
+  box-shadow:
+    0 10px 30px rgba(120, 80, 40, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  pointer-events: auto;
+}
+
+.tool {
+  --tint: #ffe7b8;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 72px;
+  padding: 9px 0 7px;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  color: #6b5644;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.18s;
+}
+
+.tool-soil { --tint: #f3dcc3; }
+.tool-stone { --tint: #e6e2dc; }
+.tool-water { --tint: #cdf1ee; }
+.tool-seeds { --tint: #dcf1cf; }
+
+.tool:hover {
+  background: rgba(255, 255, 255, 0.75);
+  transform: translateY(-2px);
+}
+
+.tool:focus-visible {
+  outline: 2px solid #e9a55a;
+  outline-offset: 2px;
+}
+
+.tool.active {
+  background: var(--tint);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 14px rgba(120, 80, 40, 0.14);
+}
+
+.tool.active .tool-icon {
+  animation: tool-bounce 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tool-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+}
+
+.tool-icon svg {
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 1px 0 rgba(90, 60, 30, 0.15));
+}
+
+.tool-key {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: rgba(107, 86, 68, 0.1);
+  font-size: 10px;
+  line-height: 14px;
+  opacity: 0.75;
+}
+
+@keyframes tool-bounce {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.28) rotate(-6deg); }
+  65% { transform: scale(0.94) rotate(3deg); }
+  100% { transform: scale(1); }
+}
+
+.toolbar-hint,
+.toolbar-sub {
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.86);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.toolbar-hint {
+  animation: hint-in 0.22s ease-out;
+}
+
+.toolbar-hint.remove {
+  background: rgba(255, 222, 190, 0.9);
+  color: #9a5421;
+}
+
+.toolbar-hint-sub {
+  font-weight: 500;
+  opacity: 0.65;
+}
+
+.toolbar-sub {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+@keyframes hint-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 420px) {
+  .tool { width: 62px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool, .tool.active .tool-icon, .toolbar-hint { animation: none; transition: none; }
+}

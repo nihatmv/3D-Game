@@ -1,0 +1,275 @@
+import { create } from 'zustand'
+import { HALF, MAX_LEVEL, MAX_STONE, TILE_COUNT, TileType } from '../world/constants'
+import { N8, idx, inBounds, initialIsland } from '../world/grid'
+import { computePondLevels } from '../world/ponds'
+import { MAX_PLANTS, isTree, plantRules, type PlantKind } from '../world/plantRules'
+
+export type Tool = 'soil' | 'stone' | 'water' | 'seeds'
+export type TileCoord = { x: number; z: number }
+
+export type Plant = {
+  id: number
+  /** Tile index the plant grows on. */
+  tile: number
+  /** Offset from the tile centre (world units). */
+  ox: number
+  oz: number
+  kind: PlantKind
+  /** performance.now() timestamp when the seed landed. */
+  plantedAt: number
+  scale: number
+  rot: number
+}
+
+type IslandState = {
+  /** Height level per tile (0 = ocean). Mutated in place; watch terrainVersion. */
+  height: Uint8Array
+  /** TileType per tile. Mutated in place; watch terrainVersion. */
+  type: Uint8Array
+  /** Pond water surface y per tile, NaN where dry. Derived from height/type. */
+  pondLevel: Float32Array
+  terrainVersion: number
+  /** Stone pieces stacked on each tile (0..MAX_STONE). Watch stoneVersion. */
+  stones: Uint8Array
+  stoneVersion: number
+
+  tool: Tool
+  hover: TileCoord | null
+
+  setTool: (tool: Tool) => void
+  setHover: (hover: TileCoord | null) => void
+
+  /** Soil: add one level (or turn ocean into a new beach). */
+  raise: (x: number, z: number) => boolean
+  /** Soil + shift: remove one level; level 0 becomes ocean. */
+  lower: (x: number, z: number) => boolean
+  /** Water: dig the tile down one level and flood it. */
+  dig: (x: number, z: number) => boolean
+  /** Water + shift: fill a pond tile back in with grass. */
+  fill: (x: number, z: number) => boolean
+  /** Stone: place a boulder, or stack another block on top. */
+  addStone: (x: number, z: number) => boolean
+  /** Stone + shift: remove the top piece. */
+  removeStone: (x: number, z: number) => boolean
+
+  /** All plants. Mutated in place; watch plantVersion. */
+  plants: Plant[]
+  plantVersion: number
+  /** Seeds: scatter `count` seeds around a world-space point. Returns how many took root. */
+  scatterSeeds: (wx: number, wz: number, count: number, radius: number) => number
+  /** Seeds + shift: clear every plant on a tile. */
+  removePlants: (x: number, z: number) => boolean
+}
+
+const initial = initialIsland()
+const initialPonds = new Float32Array(TILE_COUNT)
+computePondLevels(initial.height, initial.type, initialPonds)
+
+export const useIslandStore = create<IslandState>((set, get) => {
+  /** Recompute derived data and notify subscribers after a terrain edit. */
+  const commitTerrain = () => {
+    const { height, type, pondLevel, terrainVersion } = get()
+    computePondLevels(height, type, pondLevel)
+    set({ terrainVersion: terrainVersion + 1 })
+  }
+
+  const commitStones = () => set({ stoneVersion: get().stoneVersion + 1 })
+
+  const commitPlants = () => set({ plantVersion: get().plantVersion + 1 })
+  let nextPlantId = 1
+
+  /** Remove every plant on a tile. Returns true if any were removed. */
+  const clearPlants = (i: number) => {
+    const { plants } = get()
+    const before = plants.length
+    let w = 0
+    for (let r = 0; r < plants.length; r++) if (plants[r].tile !== i) plants[w++] = plants[r]
+    plants.length = w
+    if (w === before) return false
+    commitPlants()
+    return true
+  }
+
+  /** Drop every stone on a tile (it was dug out or sank into the ocean). */
+  const clearStones = (i: number) => {
+    const { stones } = get()
+    if (stones[i] === 0) return
+    stones[i] = 0
+    commitStones()
+  }
+
+  return {
+    ...initial,
+    pondLevel: initialPonds,
+    terrainVersion: 0,
+    stones: new Uint8Array(TILE_COUNT),
+    stoneVersion: 0,
+
+    tool: 'soil',
+    hover: null,
+
+    setTool: (tool) => set({ tool }),
+    setHover: (hover) => {
+      const cur = get().hover
+      if (cur === hover || (cur && hover && cur.x === hover.x && cur.z === hover.z)) return
+      set({ hover })
+    },
+
+    raise: (x, z) => {
+      const { height, type, stones } = get()
+      const i = idx(x, z)
+      if (type[i] === TileType.Water) {
+        // Filling a pond comes first: keep the level, turn it into soil.
+        type[i] = TileType.Soil
+      } else if (height[i] < MAX_LEVEL) {
+        height[i]++
+        // Stones ride up with the land; bare tiles become fresh soil.
+        if (stones[i] === 0) type[i] = TileType.Soil
+      } else {
+        return false
+      }
+      commitTerrain()
+      return true
+    },
+
+    lower: (x, z) => {
+      const { height, type } = get()
+      const i = idx(x, z)
+      if (height[i] === 0) return false
+      height[i]--
+      if (height[i] === 0) {
+        type[i] = TileType.Grass
+        clearStones(i)
+        clearPlants(i)
+      }
+      commitTerrain()
+      return true
+    },
+
+    dig: (x, z) => {
+      const { height, type } = get()
+      const i = idx(x, z)
+      const h = height[i]
+      if (h === 0) return false
+      if (type[i] === TileType.Water) {
+        // Deepen an existing pond, but keep a bed above the seabed.
+        if (h <= 1) return false
+        height[i]--
+      } else if (h === 1) {
+        // Digging a beach tile opens a channel to the ocean.
+        height[i] = 0
+        type[i] = TileType.Grass
+      } else {
+        height[i]--
+        type[i] = TileType.Water
+      }
+      clearStones(i)
+      clearPlants(i)
+      commitTerrain()
+      return true
+    },
+
+    fill: (x, z) => {
+      const { height, type } = get()
+      const i = idx(x, z)
+      if (type[i] !== TileType.Water) return false
+      type[i] = TileType.Grass
+      height[i] = Math.min(MAX_LEVEL, height[i] + 1)
+      commitTerrain()
+      return true
+    },
+
+    addStone: (x, z) => {
+      const { height, type, stones } = get()
+      const i = idx(x, z)
+      if (height[i] === 0 || type[i] === TileType.Water || stones[i] >= MAX_STONE) return false
+      stones[i]++
+      clearPlants(i)
+      commitStones()
+      if (type[i] !== TileType.Stone) {
+        type[i] = TileType.Stone
+        commitTerrain()
+      }
+      return true
+    },
+
+    removeStone: (x, z) => {
+      const { type, stones } = get()
+      const i = idx(x, z)
+      if (stones[i] === 0) return false
+      stones[i]--
+      commitStones()
+      if (stones[i] === 0) {
+        type[i] = TileType.Grass
+        commitTerrain()
+      }
+      return true
+    },
+
+    plants: [],
+    plantVersion: 0,
+
+    scatterSeeds: (wx, wz, count, radius) => {
+      const { height, type, stones, pondLevel, plants } = get()
+      const now = performance.now()
+      let grown = 0
+      for (let n = 0; n < count && plants.length < MAX_PLANTS; n++) {
+        // Uniform point in a disc around the click.
+        const a = Math.random() * Math.PI * 2
+        const r = Math.sqrt(Math.random()) * radius
+        const px = wx + Math.cos(a) * r
+        const pz = wz + Math.sin(a) * r
+        const x = Math.floor(px + HALF)
+        const z = Math.floor(pz + HALF)
+        if (!inBounds(x, z)) continue
+        const i = idx(x, z)
+
+        let nearWater = false
+        for (const [dx, dz] of N8) {
+          const nx = x + dx
+          const nz = z + dz
+          if (!inBounds(nx, nz) || height[idx(nx, nz)] === 0 || !Number.isNaN(pondLevel[idx(nx, nz)])) {
+            nearWater = true
+            break
+          }
+        }
+        let plantsOnTile = 0
+        let hasTree = false
+        for (const p of plants) {
+          if (p.tile !== i) continue
+          plantsOnTile++
+          if (isTree(p.kind)) hasTree = true
+        }
+
+        const kind = plantRules(
+          { level: height[i], type: type[i], stones: stones[i], nearWater, plantsOnTile, hasTree },
+          Math.random,
+        )
+        if (!kind) continue
+
+        // Trees stand near the tile centre so their canopies don't clip walls.
+        const lim = isTree(kind) ? 0.12 : 0.36
+        const cx = x - HALF + 0.5
+        const cz = z - HALF + 0.5
+        plants.push({
+          id: nextPlantId++,
+          tile: i,
+          ox: Math.max(-lim, Math.min(lim, px - cx)),
+          oz: Math.max(-lim, Math.min(lim, pz - cz)),
+          kind,
+          plantedAt: now + Math.random() * 400,
+          scale: 0.8 + Math.random() * 0.35,
+          rot: Math.random() * Math.PI * 2,
+        })
+        grown++
+      }
+      if (grown) commitPlants()
+      return grown
+    },
+
+    removePlants: (x, z) => clearPlants(idx(x, z)),
+  }
+})
+
+// Dev-only handle for debugging from the browser console.
+if (import.meta.env.DEV) (window as unknown as { island: typeof useIslandStore }).island = useIslandStore
