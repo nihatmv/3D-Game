@@ -1,44 +1,38 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { BufferGeometry, Color, IcosahedronGeometry, InstancedMesh, Object3D, Vector3 } from 'three'
-import { RoundedBoxGeometry } from 'three-stdlib'
+import { BufferGeometry, Color, InstancedMesh, MeshLambertMaterial, Object3D, Vector3 } from 'three'
 import { useIslandStore } from '../store/useIslandStore'
-import { GRID, MAX_STONE, PALETTE, TILE_COUNT, tileMin } from '../world/constants'
-import { groundAt } from '../world/terrainField'
+import { GRID, MAX_STONE, TILE_COUNT, tileMin } from '../world/constants'
 import { hash2, idx } from '../world/grid'
-import { BLOCKS, BLOCK_NEST, BOULDER_RADIUS, BOULDER_SINK, BOULDER_SQUASH, boulderTop } from '../world/stones'
+import { BOULDER_RADIUS, BOULDER_SINK, BOULDER_SQUASH, CAP_H, DRUM_H, DRUM_START, TOWER_SINK, drumsTop } from '../world/stones'
+import { groundAt } from '../world/terrainField'
 import { requestShadowUpdate, wake } from './perf'
+import {
+  makeBoulderGeometry,
+  makeBrickDrum,
+  makeCrown,
+  makePlinth,
+  makeTowerCap,
+  makeWallCap,
+  makeWallSegment,
+} from './stoneGeometry'
 
-/** Low-poly boulder: an icosahedron with welded, hash-jittered vertices. */
-function makeBoulderGeometry(): BufferGeometry {
-  const geo = new IcosahedronGeometry(BOULDER_RADIUS, 0)
-  const p = geo.getAttribute('position')
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), y = p.getY(i), z = p.getZ(i)
-    // Key by rounded position so shared vertices get the same offset.
-    const k1 = Math.round(x * 1000) * 7 + Math.round(z * 1000)
-    const k2 = Math.round(y * 1000)
-    const s = 0.85 + hash2(k1, k2) * 0.3
-    p.setXYZ(i, x * s, y * s * BOULDER_SQUASH, z * s)
-  }
-  geo.computeVertexNormals()
-  return geo
-}
-
-const MAX_BLOCKS = TILE_COUNT * (MAX_STONE - 1)
-const dummy = new Object3D()
-const baseColor = new Color(PALETTE.stone)
-const warm = new Color('#d8c8b4')
-const cool = new Color('#b3bcc4')
-const tmpColor = new Color()
-
-function pieceColor(x: number, z: number, k: number): Color {
-  const r = hash2(x * 5 + k, z * 3 - k)
-  tmpColor.copy(baseColor).lerp(r < 0.5 ? warm : cool, Math.abs(r - 0.5))
-  return tmpColor.multiplyScalar(0.9 + hash2(z + k * 13, x) * 0.14)
-}
+/** Every kind of stone piece is one instanced mesh (one draw call each). */
+const PIECES = {
+  boulder: { make: makeBoulderGeometry, max: TILE_COUNT },
+  plinth: { make: makePlinth, max: TILE_COUNT },
+  drum: { make: makeBrickDrum, max: TILE_COUNT * MAX_STONE },
+  cap: { make: makeTowerCap, max: TILE_COUNT },
+  crown: { make: makeCrown, max: TILE_COUNT },
+  wall: { make: makeWallSegment, max: TILE_COUNT * 2 * MAX_STONE },
+  wallCap: { make: makeWallCap, max: TILE_COUNT * 2 },
+} as const
+type PieceKind = keyof typeof PIECES
+const KINDS = Object.keys(PIECES) as PieceKind[]
 
 const POP_MS = 320
+const dummy = new Object3D()
+const tint = new Color()
 
 /** easeOutBack: 0 -> overshoot ~1.1 -> 1. */
 function popCurve(t: number): number {
@@ -50,32 +44,42 @@ function popCurve(t: number): number {
 /** A freshly placed piece easing in (scale pop + small drop). */
 type Pop = { mesh: InstancedMesh; index: number; pos: Vector3; rotY: number; scale: Vector3; start: number }
 
+/**
+ * Stone structures: a boulder for one piece, a brick tower (plinth, drums,
+ * cap, and a lantern crown when full) for more, with capped brick walls
+ * joining neighbouring towers.
+ */
 export function Stones() {
   const stoneVersion = useIslandStore((s) => s.stoneVersion)
   const terrainVersion = useIslandStore((s) => s.terrainVersion)
-  const boulders = useRef<InstancedMesh>(null)
-  const blocks = useRef<InstancedMesh>(null)
 
-  const boulderGeo = useMemo(makeBoulderGeometry, [])
-  const blockGeo = useMemo(() => new RoundedBoxGeometry(1, 1, 1, 2, 0.12), [])
+  const geometries = useMemo(() => {
+    const g = {} as Record<PieceKind, BufferGeometry>
+    for (const k of KINDS) g[k] = PIECES[k].make()
+    return g
+  }, [])
+  const material = useMemo(() => new MeshLambertMaterial({ vertexColors: true, flatShading: true }), [])
   useEffect(() => () => {
-    boulderGeo.dispose()
-    blockGeo.dispose()
-  }, [boulderGeo, blockGeo])
+    Object.values(geometries).forEach((g) => g.dispose())
+    material.dispose()
+  }, [geometries, material])
 
-  // Instance -> tile index, used by Interaction to resolve clicks on stones.
-  const boulderTiles = useMemo(() => new Int32Array(TILE_COUNT), [])
-  const blockTiles = useMemo(() => new Int32Array(MAX_BLOCKS), [])
+  const meshes = useRef<Partial<Record<PieceKind, InstancedMesh>>>({})
+  // Instance -> tile index per piece kind, used by Interaction to resolve clicks.
+  const tileOf = useMemo(() => {
+    const t = {} as Record<PieceKind, Int32Array>
+    for (const k of KINDS) t[k] = new Int32Array(PIECES[k].max)
+    return t
+  }, [])
 
-  // Which tiles just gained a piece, so their new top piece can pop in.
+  // Which tiles just gained a piece, so their new pieces can pop in.
   const prevStones = useMemo(() => new Uint8Array(TILE_COUNT), [])
   const popStart = useMemo(() => new Map<number, number>(), [])
   const pops = useRef<Pop[]>([])
 
   useLayoutEffect(() => {
-    const bm = boulders.current
-    const km = blocks.current
-    if (!bm || !km) return
+    const m = meshes.current
+    if (KINDS.some((k) => !m[k])) return
     const { stones, field } = useIslandStore.getState()
     const now = performance.now()
     for (let i = 0; i < TILE_COUNT; i++) if (stones[i] > prevStones[i]) popStart.set(i, now)
@@ -83,76 +87,111 @@ export function Stones() {
     for (const [i, t] of popStart) if (now - t > POP_MS) popStart.delete(i)
     pops.current = []
 
-    /** Write a piece's matrix; the newest piece on a tile starts a pop. */
-    const put = (mesh: InstancedMesh, index: number, tile: number, isTop: boolean) => {
-      const start = isTop ? popStart.get(tile) : undefined
+    const counts = {} as Record<PieceKind, number>
+    for (const k of KINDS) counts[k] = 0
+
+    /** Add one piece at the current dummy transform; `pop` makes it ease in. */
+    const put = (kind: PieceKind, tile: number, pop: boolean) => {
+      const mesh = m[kind]!
+      const index = counts[kind]++
+      const start = pop ? popStart.get(tile) : undefined
       if (start !== undefined) {
-        pops.current.push({
-          mesh,
-          index,
-          pos: dummy.position.clone(),
-          rotY: dummy.rotation.y,
-          scale: dummy.scale.clone(),
-          start,
-        })
+        pops.current.push({ mesh, index, pos: dummy.position.clone(), rotY: dummy.rotation.y, scale: dummy.scale.clone(), start })
         dummy.scale.multiplyScalar(0.001)
       }
       dummy.updateMatrix()
       mesh.setMatrixAt(index, dummy.matrix)
+      // Subtle per-structure tint so neighbouring towers aren't identical.
+      tint.setScalar(0.94 + hash2(tile, 31) * 0.1)
+      mesh.setColorAt(index, tint)
+      tileOf[kind][index] = tile
     }
 
-    let nb = 0
-    let nk = 0
+    const center = (i: number): [number, number] => [tileMin(i % GRID) + 0.5, tileMin(Math.floor(i / GRID)) + 0.5]
+    const towerBase = (i: number) => {
+      const [cx, cz] = center(i)
+      return groundAt(field, cx, cz) - TOWER_SINK
+    }
 
     for (let z = 0; z < GRID; z++) {
       for (let x = 0; x < GRID; x++) {
         const i = idx(x, z)
         const count = stones[i]
         if (count === 0) continue
-        const cx = tileMin(x) + 0.5
-        const cz = tileMin(z) + 0.5
-        const ground = groundAt(field, cx, cz)
+        const [cx, cz] = center(i)
 
-        // Boulder.
-        const s = 0.9 + hash2(x, z) * 0.2
-        dummy.position.set(
-          cx + (hash2(x + 11, z) - 0.5) * 0.1,
-          ground + BOULDER_RADIUS * BOULDER_SQUASH - BOULDER_SINK,
-          cz + (hash2(x, z + 11) - 0.5) * 0.1,
-        )
-        dummy.rotation.set(0, hash2(x + 3, z + 7) * Math.PI * 2, 0)
-        dummy.scale.set(s, 1, s)
-        put(bm, nb, i, count === 1)
-        bm.setColorAt(nb, pieceColor(x, z, 0))
-        boulderTiles[nb++] = i
-
-        // Blocks, each a little smaller and slightly twisted, like a cairn.
-        let base = ground + boulderTop() - BLOCK_NEST
-        for (let k = 1; k < count; k++) {
-          const b = BLOCKS[k - 1]
+        if (count === 1) {
+          const s = 0.9 + hash2(x, z) * 0.2
           dummy.position.set(
-            cx + (hash2(x * 7 + k, z) - 0.5) * 0.08,
-            base + b.h / 2,
-            cz + (hash2(x, z * 7 + k) - 0.5) * 0.08,
+            cx + (hash2(x + 11, z) - 0.5) * 0.1,
+            groundAt(field, cx, cz) + BOULDER_RADIUS * BOULDER_SQUASH - BOULDER_SINK,
+            cz + (hash2(x, z + 11) - 0.5) * 0.1,
           )
-          dummy.rotation.set(0, (hash2(x + k * 17, z - k) - 0.5) * 0.9, 0)
-          dummy.scale.set(b.w, b.h, b.w)
-          put(km, nk, i, k === count - 1)
-          km.setColorAt(nk, pieceColor(x, z, k))
-          blockTiles[nk++] = i
-          base += b.h - BLOCK_NEST
+          dummy.rotation.set(0, hash2(x + 3, z + 7) * Math.PI * 2, 0)
+          dummy.scale.set(s, 1, s)
+          put('boulder', i, true)
+          continue
+        }
+
+        // A brand-new tower pops in whole; a growing one pops its new top.
+        const fresh = popStart.has(i) && count === 2
+        const base = towerBase(i)
+        const yaw = hash2(x + 5, z + 9) * Math.PI * 2
+
+        dummy.position.set(cx, base, cz)
+        dummy.rotation.set(0, yaw, 0)
+        dummy.scale.set(1, 1, 1)
+        put('plinth', i, fresh)
+        for (let k = 0; k < count; k++) {
+          dummy.position.set(cx, base + DRUM_START + k * DRUM_H, cz)
+          dummy.rotation.set(0, yaw + k * 0.35, 0)
+          dummy.scale.set(1, 1, 1)
+          put('drum', i, fresh || k === count - 1)
+        }
+        const top = base + TOWER_SINK + drumsTop(count)
+        dummy.position.set(cx, top, cz)
+        dummy.rotation.set(0, yaw, 0)
+        dummy.scale.set(1, 1, 1)
+        put('cap', i, true)
+        if (count >= MAX_STONE) {
+          dummy.position.set(cx, top + CAP_H - 0.04, cz)
+          dummy.scale.set(1, 1, 1)
+          put('crown', i, true)
+        }
+
+        // Walls to the +x / +z neighbour towers (each pair once).
+        for (const [dx, dz] of [[1, 0], [0, 1]] as const) {
+          const nx = x + dx
+          const nz = z + dz
+          if (nx >= GRID || nz >= GRID) continue
+          const n = idx(nx, nz)
+          if (stones[n] < 2) continue
+          const levels = Math.min(count, stones[n])
+          const wallBase = Math.min(base, towerBase(n))
+          const rot = dx === 1 ? 0 : Math.PI / 2
+          for (let k = 0; k < levels; k++) {
+            dummy.position.set(cx + dx * 0.5, wallBase + DRUM_START + k * DRUM_H, cz + dz * 0.5)
+            dummy.rotation.set(0, rot, 0)
+            dummy.scale.set(1, 1, 1)
+            put('wall', i, false)
+          }
+          dummy.position.set(cx + dx * 0.5, wallBase + DRUM_START + levels * DRUM_H, cz + dz * 0.5)
+          dummy.rotation.set(0, rot, 0)
+          dummy.scale.set(1, 1, 1)
+          put('wallCap', i, false)
         }
       }
     }
 
-    for (const [mesh, n] of [[bm, nb], [km, nk]] as const) {
-      mesh.count = n
+    for (const k of KINDS) {
+      const mesh = m[k]!
+      mesh.count = counts[k]
       mesh.instanceMatrix.needsUpdate = true
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
       mesh.computeBoundingSphere()
     }
     requestShadowUpdate()
-  }, [stoneVersion, terrainVersion, boulderTiles, blockTiles, prevStones, popStart])
+  }, [stoneVersion, terrainVersion, prevStones, popStart, tileOf])
 
   useFrame(() => {
     const list = pops.current
@@ -178,26 +217,20 @@ export function Stones() {
 
   return (
     <>
-      <instancedMesh
-        ref={boulders}
-        args={[boulderGeo, undefined, TILE_COUNT]}
-        castShadow
-        receiveShadow
-        name="stones"
-        userData={{ tileOf: boulderTiles }}
-      >
-        <meshLambertMaterial flatShading />
-      </instancedMesh>
-      <instancedMesh
-        ref={blocks}
-        args={[blockGeo, undefined, MAX_BLOCKS]}
-        castShadow
-        receiveShadow
-        name="stones"
-        userData={{ tileOf: blockTiles }}
-      >
-        <meshLambertMaterial flatShading />
-      </instancedMesh>
+      {KINDS.map((kind) => (
+        <instancedMesh
+          key={kind}
+          ref={(mesh) => {
+            if (mesh) meshes.current[kind] = mesh
+          }}
+          args={[geometries[kind], material, PIECES[kind].max]}
+          count={0}
+          castShadow
+          receiveShadow
+          name="stones"
+          userData={{ tileOf: tileOf[kind] }}
+        />
+      ))}
     </>
   )
 }

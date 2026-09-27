@@ -1,60 +1,12 @@
-import {
-  BufferAttribute,
-  BufferGeometry,
-  Color,
-  ConeGeometry,
-  CylinderGeometry,
-  Euler,
-  IcosahedronGeometry,
-  Matrix4,
-  Quaternion,
-  Vector3,
-} from 'three'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { BufferGeometry, ConeGeometry, CylinderGeometry, IcosahedronGeometry } from 'three'
 import type { PlantKind } from '../world/plantRules'
+import { build, rng, type Part } from './geomUtil'
 
 /**
  * Low-poly plant models built from primitives, merged into a single
  * vertex-coloured geometry per kind (one draw call per kind). Local y = 0 is
  * the ground; models are roughly tile-scaled (trees ~1.1 tall).
  */
-
-type Part = { geo: BufferGeometry; color: string; pos?: [number, number, number]; rot?: [number, number, number] }
-
-const m = new Matrix4()
-const q = new Quaternion()
-const one = new Vector3(1, 1, 1)
-
-function build(parts: Part[]): BufferGeometry {
-  const geos = parts.map(({ geo, color, pos = [0, 0, 0], rot = [0, 0, 0] }) => {
-    const g = geo.index ? geo.toNonIndexed() : geo
-    g.deleteAttribute('uv')
-    q.setFromEuler(new Euler(...rot))
-    g.applyMatrix4(m.compose(new Vector3(...pos), q, one))
-    const c = new Color(color)
-    const cols = new Float32Array(g.getAttribute('position').count * 3)
-    for (let i = 0; i < cols.length; i += 3) {
-      cols[i] = c.r
-      cols[i + 1] = c.g
-      cols[i + 2] = c.b
-    }
-    g.setAttribute('color', new BufferAttribute(cols, 3))
-    return g
-  })
-  const merged = mergeGeometries(geos)!
-  merged.computeVertexNormals()
-  merged.computeBoundingSphere()
-  geos.forEach((g) => g.dispose())
-  return merged
-}
-
-/** Small deterministic PRNG so every model is the same on each load. */
-function rng(seed: number) {
-  return () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0
-    return seed / 4294967296
-  }
-}
 
 /** A blade: a thin cone standing on the ground, leaning outward. */
 function blade(r: () => number, radius: number, h: number, spread: number, colors: string[]): Part {

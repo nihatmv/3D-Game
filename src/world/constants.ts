@@ -10,7 +10,7 @@ export const SEABED_Y = -0.8
 
 export const MAX_LEVEL = 6
 export const MAX_STONE = 4
-export const GROW_MS = 10000
+export const GROW_MS = 4000
 
 export const TileType = {
   Grass: 0,

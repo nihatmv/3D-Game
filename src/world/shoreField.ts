@@ -27,7 +27,11 @@ export function createShoreTexture(): DataTexture {
 const dist = new Float32Array(RES * RES)
 const blur = new Float32Array(RES * RES)
 
-export function updateShoreTexture(tex: DataTexture, field: TerrainField): void {
+/**
+ * `isSea(wx, wz)` marks spots that are open water even though ground exists
+ * there (ponds that joined the sea), so the ocean shows and gets shore foam.
+ */
+export function updateShoreTexture(tex: DataTexture, field: TerrainField, isSea: (wx: number, wz: number) => boolean): void {
   const INF = 1e6
   // Seed: 0 on land texels, using the smooth (curved) coastline.
   const landMin = SEABED_Y + 0.05
@@ -36,7 +40,7 @@ export function updateShoreTexture(tex: DataTexture, field: TerrainField): void 
     const wz = SHORE_MIN + (v + 0.5) / RES_PER_UNIT
     for (let u = 0; u < RES; u++) {
       const wx = SHORE_MIN + (u + 0.5) / RES_PER_UNIT
-      const land = inField(wx) && inField(wz) && sampleAt(field.heights, wx, wz) > landMin
+      const land = inField(wx) && inField(wz) && sampleAt(field.heights, wx, wz) > landMin && !isSea(wx, wz)
       dist[v * RES + u] = land ? 0 : INF
     }
   }

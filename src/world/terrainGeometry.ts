@@ -22,7 +22,6 @@ const LIP_H = 0.06
 
 const colGrass = new Color(PALETTE.grass)
 const colSand = new Color(PALETTE.sand)
-const colSoil = new Color(PALETTE.soil)
 const colStone = new Color(PALETTE.stone)
 const colPondBed = new Color(PALETTE.pondBed)
 const colWetSand = new Color(PALETTE.wetSand)
@@ -31,7 +30,9 @@ const colStrata = PALETTE.strata.map((c) => new Color(c))
 export function topColor(level: number, type: number, out: Color): Color {
   switch (type) {
     case TileType.Soil:
-      return out.copy(colSoil)
+      // Raised land keeps the island's natural look (sand at beach level,
+      // grass above); it stays Soil internally so trees still prefer it.
+      return out.copy(level <= 1 ? colSand : colGrass)
     case TileType.Stone:
       // Stones sit on the natural ground; just a hint of grey around them.
       return out.copy(level <= 1 ? colSand : colGrass).lerp(colStone, 0.12)

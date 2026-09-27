@@ -232,7 +232,8 @@ export const useIslandStore = create<IslandState>((set, get) => {
         for (const [dx, dz] of N8) {
           const nx = x + dx
           const nz = z + dz
-          if (!inBounds(nx, nz) || height[idx(nx, nz)] === 0 || !Number.isNaN(pondLevel[idx(nx, nz)])) {
+          const n = inBounds(nx, nz) ? idx(nx, nz) : -1
+          if (n < 0 || height[n] === 0 || type[n] === TileType.Water || !Number.isNaN(pondLevel[n])) {
             nearWater = true
             break
           }

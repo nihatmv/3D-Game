@@ -25,7 +25,7 @@ Add `?stats` to the URL to show an FPS meter.
 | 1   | Soil  | Raise land (clicking the ocean makes new land) | Lower land          |
 | 2   | Stone | Place a boulder, click again to stack (max 4) | Remove the top piece |
 | 3   | Water | Dig a pond                                 | Fill the pond back in   |
-| 4   | Seeds | Scatter seeds that grow over about 10 s    | Clear plants on a tile  |
+| 4   | Seeds | Scatter seeds that grow over about 4 s     | Clear plants on a tile  |
 
 Right-drag to orbit, middle-drag to pan, and scroll to zoom.
 

@@ -8,7 +8,7 @@ type ToolDef = { id: Tool; key: string; label: string; hint: string; removeHint:
 
 const TOOLS: ToolDef[] = [
   { id: 'soil', key: '1', label: 'Soil', hint: 'Click or drag to raise land', removeHint: 'Lowering land' },
-  { id: 'stone', key: '2', label: 'Stone', hint: 'Click to place a boulder, again to stack', removeHint: 'Removing the top stone' },
+  { id: 'stone', key: '2', label: 'Stone', hint: 'Click for a boulder, keep clicking to build a tower', removeHint: 'Removing the top stone' },
   { id: 'water', key: '3', label: 'Water', hint: 'Click or drag to dig a pond', removeHint: 'Filling ponds back in' },
   { id: 'seeds', key: '4', label: 'Seeds', hint: 'Click or drag to scatter seeds', removeHint: 'Clearing plants' },
 ]

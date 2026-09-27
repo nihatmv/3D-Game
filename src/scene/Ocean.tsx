@@ -2,7 +2,8 @@ import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, ShaderMaterial, UniformsLib, UniformsUtils, Vector2 } from 'three'
 import { useIslandStore } from '../store/useIslandStore'
-import { PALETTE } from '../world/constants'
+import { HALF, PALETTE, TileType } from '../world/constants'
+import { idx, inBounds } from '../world/grid'
 import {
   SHORE_EXTENT,
   SHORE_MAX_DIST,
@@ -48,6 +49,8 @@ const fragmentShader = /* glsl */ `
 
   void main() {
     float d = texture2D(uShore, (vWorld.xz - uShoreMin) / uShoreExtent).r;
+    // Fully inside land (incl. inland ponds): don't draw the sea under it.
+    if (d < 0.5 / 255.0) discard;
     float units = d * uMaxDist;
 
     float shallow = 1.0 - smoothstep(0.0, 3.2, units);
@@ -108,7 +111,16 @@ export function Ocean() {
   material.uniforms.uShore.value = shoreTex
 
   useEffect(() => {
-    updateShoreTexture(shoreTex, useIslandStore.getState().field)
+    const { field, type, pondLevel } = useIslandStore.getState()
+    // Water tiles without their own pond surface have joined the sea.
+    const isSea = (wx: number, wz: number) => {
+      const x = Math.floor(wx + HALF)
+      const z = Math.floor(wz + HALF)
+      if (!inBounds(x, z)) return false
+      const i = idx(x, z)
+      return type[i] === TileType.Water && Number.isNaN(pondLevel[i])
+    }
+    updateShoreTexture(shoreTex, field, isSea)
   }, [terrainVersion, shoreTex])
 
   useEffect(() => () => {

@@ -7,7 +7,8 @@ import { N4, idx, inBounds } from './grid'
  * Connected water tiles form one pond sharing a single level: a bit above the
  * highest pond's nominal level, but never above the lowest bank, so water never
  * spills over. Pond beds are sunken (see POND_DEPTH), so even a bank at the same
- * level holds shallow water. Ponds touching the ocean settle at sea level.
+ * level holds shallow water. Ponds open to the ocean become part of the sea
+ * (NaN here), so the ocean surface itself shows in them.
  */
 export function computePondLevels(height: Uint8Array, type: Uint8Array, out: Float32Array): void {
   out.fill(NaN)
@@ -57,6 +58,8 @@ export function computePondLevels(height: Uint8Array, type: Uint8Array, out: Flo
     }
 
     const level = Math.min(maxNominal + STEP * 0.6, rim)
+    // A pond open to the sea is just sea: the ocean surface shows there instead.
+    if (level <= SEA_Y + 0.02) continue
     for (const m of members) {
       if (level > surfaceY(height[m], type[m]) + 0.03) out[m] = level
     }
