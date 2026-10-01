@@ -1,4 +1,7 @@
+import { track } from '../../analytics'
 import { CONTACT, type Project } from '../../story/projects'
+
+const contactClick = (channel: string) => () => track('contact_clicked', { channel })
 
 const isVideo = (src: string) => /\.(mp4|webm)$/i.test(src)
 
@@ -31,7 +34,7 @@ export function ProjectResult({ project }: { project: Project }) {
 export function CvLink() {
   if (!CONTACT.cv) return null
   return (
-    <a className="pf-cv" href={CONTACT.cv} target="_blank" rel="noreferrer" download>
+    <a className="pf-cv" href={CONTACT.cv} target="_blank" rel="noreferrer" download onClick={contactClick('cv')}>
       ⬇ Download CV
     </a>
   )
@@ -87,22 +90,22 @@ export function ContactLinks() {
   return (
     <div className="pf-links">
       {email && (
-        <a className="pf-link primary" href={`mailto:${email}`}>
+        <a className="pf-link primary" href={`mailto:${email}`} onClick={contactClick('email')}>
           Email me
         </a>
       )}
       {linkedin && (
-        <a className="pf-link" href={linkedin} target="_blank" rel="noreferrer">
+        <a className="pf-link" href={linkedin} target="_blank" rel="noreferrer" onClick={contactClick('linkedin')}>
           LinkedIn ↗
         </a>
       )}
       {github && (
-        <a className="pf-link" href={github} target="_blank" rel="noreferrer">
+        <a className="pf-link" href={github} target="_blank" rel="noreferrer" onClick={contactClick('github')}>
           GitHub ↗
         </a>
       )}
       {cv && (
-        <a className="pf-link" href={cv} target="_blank" rel="noreferrer" download>
+        <a className="pf-link" href={cv} target="_blank" rel="noreferrer" download onClick={contactClick('cv')}>
           Download CV ⬇
         </a>
       )}

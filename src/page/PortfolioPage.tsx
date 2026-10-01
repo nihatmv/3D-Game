@@ -1,4 +1,7 @@
+import { useEffect } from 'react'
+import { hideBoot } from '../boot'
 import { ISLAND_HREF } from '../routes'
+import { VISITOR, withVisitor } from '../visitor'
 import { CONTACT, EDUCATION, EXPERIENCE, PROJECTS, type Project } from '../story/projects'
 import { ContactLinks, Portrait, ProjectLinks, ProjectMedia, ProjectResult, StackChips } from '../ui/story/ProjectBody'
 import { ProjectDemo } from '../ui/story/ProjectDemo'
@@ -11,9 +14,11 @@ import './PortfolioPage.css'
  * what phones see first.
  */
 export function PortfolioPage() {
+  useEffect(hideBoot, [])
   return (
     <div className="pp">
       <main className="pp-inner">
+        {VISITOR && <p className="pp-greeting">👋 Hi, {VISITOR} team. Thanks for stopping by!</p>}
         <header className="pp-hero">
           <Portrait className="pp-photo" />
           <div className="pp-hero-text">
@@ -24,7 +29,7 @@ export function PortfolioPage() {
           </div>
         </header>
 
-        <a className="pp-island" href={ISLAND_HREF}>
+        <a className="pp-island" href={withVisitor(ISLAND_HREF)}>
           <span aria-hidden>🏝️</span>
           <span>
             <b>Explore the island</b>

@@ -3,10 +3,12 @@ import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { TOUR } from '../../story/quests'
 import { useTouchScreen } from '../../hooks/useTouchScreen'
 import { PORTFOLIO_PATH } from '../../routes'
+import { VISITOR, withVisitor } from '../../visitor'
 import { PirateAvatar } from './PirateAvatar'
 import { bindShipBubble } from './shipBubble'
 
-const INTRO = 'Ahoy! Help us make this island safe to dock. Every landmark you raise shows a piece of its builder’s work.'
+const GREETING = VISITOR ? `Ahoy, ${VISITOR} crew!` : 'Ahoy!'
+const INTRO = `${GREETING} Help us make this island safe to dock. Every landmark you raise shows a piece of its builder’s work.`
 
 const DOCKING = 'Everything’s ready, and look at that sky! Bringing her in to dock...'
 const DOCKED = 'We made it, just in time for sunset. Thank you, builder! Here’s who charted this island.'
@@ -91,7 +93,7 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
         <button className="dlg-btn ghost" onClick={() => setDismissed(true)}>
           Keep building
         </button>
-        <a className="dlg-btn" href={PORTFOLIO_PATH}>
+        <a className="dlg-btn" href={withVisitor(PORTFOLIO_PATH)}>
           All projects
         </a>
         <button className="dlg-btn primary" onClick={() => openProject('contact')}>

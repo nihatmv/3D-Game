@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { QUESTS, TOUR } from '../story/quests'
 import { placeLandmark, type Placement } from '../story/landmarks'
+import { track } from '../analytics'
 
 export type StoryPhase = 'intro' | 'questing' | 'ending' | 'done'
 export type ShipState = 'arriving' | 'waiting' | 'docking' | 'docked'
@@ -61,7 +62,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   sunset: 0,
 
   startQuests: () => {
-    if (get().phase === 'intro') set({ phase: 'questing' })
+    if (get().phase !== 'intro') return
+    set({ phase: 'questing' })
+    track('tour_started')
   },
 
   setBuilding: (building) => set({ building }),
@@ -80,6 +83,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       openCard: q.projectId,
       phase: next >= TOUR.length ? 'ending' : 'questing',
     })
+    track('landmark_completed', { project: q.projectId, stop: next })
     const at = placeLandmark(q, get().placed)
     set({ placed: { ...get().placed, [id]: at }, focus: at })
   },

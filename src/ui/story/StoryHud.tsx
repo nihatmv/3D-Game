@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { useStoryStore } from '../../store/useStoryStore'
 import { TOUR } from '../../story/quests'
+import { trackThenGo } from '../../analytics'
 import { PORTFOLIO_PATH } from '../../routes'
+import { withVisitor } from '../../visitor'
 import { Hero } from './Hero'
 import { ProjectCard } from './ProjectCard'
 import './Story.css'
@@ -16,6 +18,8 @@ function useEscToClose() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 }
+
+const portfolioHref = withVisitor(PORTFOLIO_PATH)
 
 /** Progress counter, the always-on Portfolio link, the skip link and the overlays. Both links open the plain page. */
 export function StoryHud() {
@@ -38,13 +42,20 @@ export function StoryHud() {
             {stops} / {TOUR.length} landmarks
           </span>
         </div>
-        <a className="story-btn" href={PORTFOLIO_PATH}>
+        <a className="story-btn" href={portfolioHref}>
           📜 Portfolio
         </a>
       </div>
 
       {!finished && (
-        <a className="story-btn story-skip" href={PORTFOLIO_PATH}>
+        <a
+          className="story-btn story-skip"
+          href={portfolioHref}
+          onClick={(e) => {
+            e.preventDefault()
+            trackThenGo('skip_clicked', portfolioHref)
+          }}
+        >
           Skip, just show me everything →
         </a>
       )}

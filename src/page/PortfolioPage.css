@@ -183,3 +183,14 @@
 @media (prefers-reduced-motion: reduce) {
   .pp-island { transition: none; }
 }
+
+.pp-greeting {
+  display: inline-block;
+  margin: 0 0 18px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 700;
+  color: #2f8f98;
+}

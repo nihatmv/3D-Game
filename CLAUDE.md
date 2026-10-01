@@ -31,6 +31,9 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
 ## Layout
 
 - `src/main.tsx` + `src/routes.ts`: `showPortfolioPage()` renders `PortfolioPage` on `/portfolio`, and on phones unless `?tour` is set. Otherwise it lazy-loads `App` (the 3D island), so the page never downloads three.js. Moving between the two views is a full page load (plain links). `vercel.json` and `public/_redirects` rewrite `/portfolio` to `index.html`.
+- `src/visitor.ts`: `?for=acme` handling. `VISITOR` is the cleaned-up name (letters, digits, spaces and `& . ' -` only, at most 24 characters, rendered only as text). It drives the captain's "Ahoy, Acme crew!" and the page greeting. `withVisitor(href)` keeps `?for=` on links between the two views.
+- `src/analytics.ts`: `track(event, props)`, plus `trackThenGo` for same-tab links. The provider is chosen by env only (`VITE_ANALYTICS_PROVIDER=plausible` + `VITE_PLAUSIBLE_DOMAIN`, see `.env.example`); with none set, events are dropped and logged in dev. The events are `tour_started`, `landmark_completed`, `skip_clicked` and `contact_clicked`, and each carries `for` when the link is personalized.
+- `index.html` + `vite.config.ts`: the loading screen (`#boot`) is plain HTML. `src/boot.ts` `hideBoot()` removes it, called by the page on mount and by the island after its first frames. The `portfolioHtml` plugin fills `%APP_*%` (name, title, description, and the OG/Twitter tags) from `CONTACT` in `projects.ts`. `VITE_SITE_URL` makes `og:image` absolute. `public/og.png` is a 1200×630 placeholder captured headless at sunset.
 - `src/page/`: `PortfolioPage` and its CSS. It reuses the card pieces in `ProjectBody` (media, result, chips, links, `ContactLinks`, `Portrait`) and the `ProjectDemo` blocks. It must not import anything that pulls in three, such as the story or island stores.
 
 - `src/world/`: pure logic, with no React or three scene code. It holds grid helpers (`idx`, `inBounds`), terrain and shore fields, ponds, plant and tool rules (`canApply` returns false on locked tiles), and constants (`MAX_STONE`, `SEA_Y`, …).
@@ -76,6 +79,7 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
 - `skipAll` (dev and tests only, since visitors who skip go to `/portfolio`) places landmarks in quest order, because the lighthouse top needs its base.
 - Keep frame-time clamps loose (`Math.min(dt, 0.25)`). A tight clamp makes animations take far longer on slow machines.
 - Landmarks call `stopPropagation` on pointer events so clicking them doesn't fire a tool.
+- Don't add Rolldown `advancedChunks`/manual vendor chunks. A `three` vendor chunk crashed production with "m is not a function". Without `includeDependenciesRecursively: false` it also pulled react-dom out of the page chunk. The lazy `App` import is the only split. Check `npx vite preview` after any build config change, because dev mode won't show it.
 - The ship docks on the far side of the pier (`ALONGSIDE` negative) so it doesn't hide the pier from the camera.
 
 ## Testing **headless**
@@ -105,5 +109,5 @@ Software rendering gives roughly 10 fps. Compare performance before and after a 
   - Phase 2 is done: camera fly-to, centered cards with Continue, landmarks reopen their cards in free play.
   - Phase 3 is done: landmark mini demos.
   - Phase 4 is done: the `/portfolio` page, lazy 3D, phones see the page first, the centered contact card with a photo.
-  - Next is Phase 5: `?for=` greeting, loading screen, OG image, analytics.
+  - Phase 5 is done: `?for=` greeting, loading screen, OG and Twitter tags with the preview image, analytics hook, non-blocking font. All 5 phases of the outreach pass are complete.
 - The owner will supply real project and contact content for `src/story/projects.ts`.

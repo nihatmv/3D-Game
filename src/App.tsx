@@ -4,6 +4,7 @@ import { PerformanceMonitor, Stats } from '@react-three/drei'
 import { NeutralToneMapping, PCFShadowMap } from 'three'
 import { Scene } from './scene/Scene'
 import { setLowPower } from './scene/perf'
+import { hideBoot } from './boot'
 import { Toolbar } from './ui/Toolbar'
 import { StoryHud } from './ui/story/StoryHud'
 import { Dialogue } from './ui/story/Dialogue'
@@ -31,6 +32,8 @@ export default function App() {
         camera={{ position: [20, 17, 20], fov: 40, near: 0.1, far: 300 }}
         gl={{ antialias: true, toneMapping: NeutralToneMapping, powerPreference: 'high-performance' }}
         onContextMenu={(e) => e.preventDefault()}
+        // Fade the loading screen once a couple of frames have been drawn.
+        onCreated={() => requestAnimationFrame(() => requestAnimationFrame(hideBoot))}
       >
         <PerformanceMonitor
           bounds={() => [45, 58]}
