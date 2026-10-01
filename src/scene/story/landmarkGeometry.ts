@@ -1,4 +1,5 @@
 import { BoxGeometry, BufferGeometry, ConeGeometry, CylinderGeometry, IcosahedronGeometry, SphereGeometry } from 'three'
+import { PIER_DIR } from '../../story/landmarks'
 import type { LandmarkKind } from '../../story/quests'
 import { build, rng, type Part } from '../geomUtil'
 
@@ -17,7 +18,7 @@ const GALLERY_H = 0.07
 /** Centre of the glowing lamp, relative to the ground. */
 export const LAMP_Y = LIGHTHOUSE_BASE_H + TOP_TOWER_H + GALLERY_H + 0.16
 export const LAMP_R = 0.2
-/** Pier deck height above the sea and its length (it starts at x = 0 and runs along +x). */
+/** Pier deck height above the sea and its length (it starts at x = 0 and runs along x in PIER_DIR). */
 export const PIER_DECK_Y = 0.32
 export const PIER_LENGTH = 3.4
 
@@ -82,17 +83,17 @@ function pier(): BufferGeometry {
     parts.push({
       geo: new BoxGeometry(w * 0.88, 0.07, 0.82),
       color: k % 2 ? WOOD : WOOD_LIGHT,
-      pos: [w * (k + 0.5), PIER_DECK_Y, 0],
+      pos: [PIER_DIR * w * (k + 0.5), PIER_DECK_Y, 0],
       rot: [0, 0, (k % 3) * 0.01 - 0.01],
     })
   }
   for (const x of [0.7, 1.9, PIER_LENGTH - 0.15]) {
     for (const z of [-0.37, 0.37]) {
-      parts.push({ geo: new CylinderGeometry(0.06, 0.07, 1.3, 6), color: WOOD_DARK, pos: [x, PIER_DECK_Y - 0.55, z] })
+      parts.push({ geo: new CylinderGeometry(0.06, 0.07, 1.3, 6), color: WOOD_DARK, pos: [PIER_DIR * x, PIER_DECK_Y - 0.55, z] })
     }
   }
   // Lantern post and a bollard at the far end.
-  const end = PIER_LENGTH - 0.25
+  const end = PIER_DIR * (PIER_LENGTH - 0.25)
   parts.push({ geo: new CylinderGeometry(0.035, 0.04, 0.8, 6), color: WOOD_DARK, pos: [end, PIER_DECK_Y + 0.42, 0.3] })
   parts.push({ geo: new BoxGeometry(0.14, 0.16, 0.14), color: '#ffd27a', pos: [end, PIER_DECK_Y + 0.88, 0.3] })
   parts.push({ geo: new ConeGeometry(0.12, 0.08, 4), color: DARK, pos: [end, PIER_DECK_Y + 1.0, 0.3], rot: [0, Math.PI / 4, 0] })

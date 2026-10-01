@@ -1,19 +1,24 @@
 import { CatmullRomCurve3, Vector3 } from 'three'
+import { PIER_DIR } from './landmarks'
 
 /**
  * Where the ship sails, in world space (the island is centred on the origin;
- * the pier quest builds land out toward +x).
+ * the default camera sits at +x +z, so -x is the top-left of the screen and
+ * the pier quest builds out that way, see PIER_DIR).
  */
 
-/** Offshore, out of the fog, to where it waits for the island to be ready. */
+/**
+ * In from the top-left corner of the default view to where it waits, off the
+ * island's top-left (west) shore, for the island to be ready.
+ */
 export const ARRIVE_PATH = new CatmullRomCurve3([
-  new Vector3(46, 0, -20),
-  new Vector3(32, 0, -9),
-  new Vector3(21, 0, -1),
-  new Vector3(14.5, 0, 1.2),
+  new Vector3(-38, 0, -9),
+  new Vector3(-27, 0, -4.5),
+  new Vector3(-19, 0, -1.8),
+  new Vector3(-14.5, 0, -1.2),
 ])
 
-export const ARRIVE_SECONDS = 7
+export const ARRIVE_SECONDS = 2
 
 export const WAIT_POINT = ARRIVE_PATH.points[ARRIVE_PATH.points.length - 1]
 
@@ -26,10 +31,14 @@ const ALONGSIDE = -1.2
 
 /**
  * From wherever the ship is to a berth alongside the end of the pier
- * (`pierX` is where the deck leaves the shore, `length` how far it reaches).
+ * (`pierX` is where the deck leaves the shore, `length` how far it reaches in PIER_DIR).
  */
 export function dockPath(from: Vector3, pierX: number, pierZ: number, length: number): CatmullRomCurve3 {
-  const end = pierX + length
+  const end = pierX + PIER_DIR * length
   const z = pierZ + ALONGSIDE
-  return new CatmullRomCurve3([from.clone().setY(0), new Vector3(end + 2.4, 0, z - 0.35), new Vector3(end - 0.7, 0, z)])
+  return new CatmullRomCurve3([
+    from.clone().setY(0),
+    new Vector3(end + PIER_DIR * 2.4, 0, z - 0.35),
+    new Vector3(end - PIER_DIR * 0.7, 0, z),
+  ])
 }

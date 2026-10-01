@@ -7,8 +7,11 @@ import { tilesInArea, type Quest } from './quests'
 /** Where a landmark stands: its anchor tile and world-space origin. */
 export type Placement = { tile: number; x: number; y: number; z: number }
 
-/** Tiles of open ocean the pier reaches over, east of its anchor. */
+/** Tiles of open ocean the pier reaches over, beyond its anchor. */
 export const PIER_TILES = 3
+
+/** Which way along x the pier reaches: -1 = west, toward where the ship waits (top-left of the default view). */
+export const PIER_DIR = -1
 
 const centreX = (i: number) => (i % GRID) - HALF + 0.5
 const centreZ = (i: number) => Math.floor(i / GRID) - HALF + 0.5
@@ -78,9 +81,10 @@ export function placeLandmark(q: Quest, placed: Record<string, Placement>): Plac
     }
 
     case 'pier': {
-      // Easternmost land on the row, then reach out over the sea toward the ship.
+      // Outermost land on the row (in PIER_DIR), then reach out over the sea toward the ship.
       let ex = HALF
-      for (let x = GRID - 1; x >= 0; x--) {
+      for (let k = 0; k < GRID; k++) {
+        const x = PIER_DIR > 0 ? GRID - 1 - k : k
         if (height[idx(x, az)] > 0) {
           ex = x
           break
@@ -88,9 +92,13 @@ export function placeLandmark(q: Quest, placed: Record<string, Placement>): Plac
       }
       const tile = idx(ex, az)
       const over: number[] = []
-      for (let k = 1; k <= PIER_TILES && ex + k < GRID; k++) over.push(idx(ex + k, az))
+      for (let k = 1; k <= PIER_TILES; k++) {
+        const x = ex + k * PIER_DIR
+        if (x >= 0 && x < GRID) over.push(idx(x, az))
+      }
       island.claimTiles([tile, ...over], [tile, ...over], { stones: true, plants: true })
-      return { tile, x: ex + 1 - HALF, y: SEA_Y, z: centreZ(tile) }
+      // The deck starts at the tile's seaward edge.
+      return { tile, x: centreX(tile) + PIER_DIR * 0.5, y: SEA_Y, z: centreZ(tile) }
     }
 
     case 'bigTree': {

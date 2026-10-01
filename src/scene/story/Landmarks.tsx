@@ -3,7 +3,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { AdditiveBlending, DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three'
 import { useIslandStore } from '../../store/useIslandStore'
 import { useStoryStore } from '../../store/useStoryStore'
-import { findPier, type Placement } from '../../story/landmarks'
+import { PIER_DIR, findPier, type Placement } from '../../story/landmarks'
 import { QUESTS, type Quest } from '../../story/quests'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { emit } from '../puffs'
@@ -87,7 +87,7 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
   useEffect(() => {
     const top = quest.landmark === 'lighthouseTop' ? LAMP_Y : 0.6
     if (quest.landmark === 'pier') {
-      for (let k = 0; k < 3; k++) emit('sparkle', at.x + (k + 0.5) * (PIER_LENGTH / 3), at.y + 0.4, at.z, 10)
+      for (let k = 0; k < 3; k++) emit('sparkle', at.x + PIER_DIR * (k + 0.5) * (PIER_LENGTH / 3), at.y + 0.4, at.z, 10)
     } else {
       emit('sparkle', at.x, at.y + top, at.z, 22)
     }
@@ -175,7 +175,7 @@ function DockFlag({ pier }: { pier: Placement }) {
     f.scale.x = 0.92 + Math.sin(t * 3.1) * 0.08
   })
   return (
-    <group position={[pier.x + 0.3, pier.y + PIER_DECK_Y, pier.z - 0.33]}>
+    <group position={[pier.x + PIER_DIR * 0.3, pier.y + PIER_DECK_Y, pier.z - 0.33]}>
       <mesh position-y={POLE_H / 2} castShadow raycast={() => null}>
         <cylinderGeometry args={[0.025, 0.03, POLE_H, 6]} />
         <meshLambertMaterial color="#e9e2d6" />

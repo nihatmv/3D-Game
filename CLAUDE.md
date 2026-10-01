@@ -38,14 +38,15 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
 - `src/story/`: the story's data and logic.
   - `projects.ts`: **portfolio content** (`PROJECTS`, `CONTACT`). It currently holds TODO placeholders that the owner will replace.
   - `quests.ts`: the ordered quests. Each has a dialogue line, a `tool`, an `area`, a `condition(snapshot, area)` and a `landmark` kind. The current quests are lighthouse base, lighthouse top, pond, pier and big tree.
-  - `landmarks.ts`: `placeLandmark()` picks an anchor tile and claims its tiles. `findPier()` finds the pier.
+  - `landmarks.ts`: `placeLandmark()` picks an anchor tile and claims its tiles. `findPier()` finds the pier. `PIER_DIR` (-1 = west) sets which way the pier reaches; the pier model, its sparkles, the dock flag and `dockPath` all follow it.
   - `useQuestWatcher.ts`: re-checks the active quest only when an island version counter changes.
   - `useEndingDirector.ts`: starts docking, then calls `finishStory()`.
-  - `shipPath.ts`: the arrive and dock curves.
+  - `shipPath.ts`: the arrive and dock curves. The ship sails in from the top-left of the default view (-x, since the camera sits at +x +z) in `ARRIVE_SECONDS` (2s) and waits off the island's west shore, where the pier quest builds out. Moving the waiting spot to another side means changing `ARRIVE_PATH`, `PIER_DIR` and the pier quest's `area` together.
 - `src/scene/`: R3F components (Island, Ocean, Ponds, Stones, Plants, Particles, Interaction, CameraRig, Lighting, HoverHighlight, PerfGovernor).
   - `CameraRig` uses `setViewOffset` (`VIEW_SHIFT`) so the island sits above the dialogue and toolbar.
   - `Lighting` owns the sky, fog and lights, and eases the sunset (`sunset.ts`).
 - `src/scene/story/`: Ship, Landmarks (pop animation, click to open the card, lighthouse beam, pond ripples, dock flag), QuestGhost (the ring over the task area), and the landmark and ship geometry.
+  - `shipGeometry.ts` is a pirate ship (dark sails, Jolly Roger, cannons) merged into one mesh. Its sails are swung off square (`BRACE`) so they face the camera rather than showing their edge.
 - `src/ui/`: the Toolbar (it renders the captain's `Dialogue` and pulses the quest tool). `src/ui/story/` holds StoryHud, Dialogue, ProjectCard, PortfolioPanel, ProjectBody and `Story.css`.
 
 ## Gotchas
@@ -58,7 +59,7 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
 
 ## Testing **headless**
 
-Use playwright-core with the cached chromium headless shell. Launch it with the `--use-angle=swiftshader --enable-unsafe-swiftshader` flags and run the dev server with `npx vite --port 5179 --strictPort`.
+Use playwright-core with the cached chromium headless shell. The playwright-core in `~/.npm/_npx` may expect a newer browser build than the one cached, so pass `executablePath` pointing at `~/Library/Caches/ms-playwright/chromium_headless_shell-*/…/chrome-headless-shell`. Launch it with the `--use-angle=swiftshader --enable-unsafe-swiftshader` flags and run the dev server with `npx vite --port 5179 --strictPort`.
 
 Drive states through `window.story.getState()` and `window.island.getState()`, for example `window.story.getState().skipAll()`.
 

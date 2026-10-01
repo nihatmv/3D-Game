@@ -112,7 +112,7 @@ export const QUESTS: Quest[] = [
     dialogue: 'We can’t reach the shore from here. Raise some land out toward the ship!',
     doneLine: 'The island reaches out to the world. Nearly close enough to dock!',
     tool: 'soil',
-    area: { x: 25, z: 16, r: 1.5 },
+    area: { x: 6, z: 16, r: 1.5 },
     condition: (s, a) => countInArea(a, (i) => wasOcean[i] === 1 && s.height[i] > 0) >= 3,
     landmark: 'pier',
   },
