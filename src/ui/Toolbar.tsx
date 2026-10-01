@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useIslandStore, type Tool } from '../store/useIslandStore'
-import { selectActiveQuest, useStoryStore } from '../store/useStoryStore'
+import { selectActiveQuest, selectToolLock, useStoryStore } from '../store/useStoryStore'
 import { useToolHotkeys } from '../hooks/useToolHotkeys'
 import { useTouchScreen } from '../hooks/useTouchScreen'
 import { ToolIcon } from './ToolIcons'
@@ -51,6 +51,8 @@ export function Toolbar() {
   const removing = useShiftHeld() || (touch && erase)
   const active = TOOLS.find((t) => t.id === tool)!
   const questTool = useStoryStore((s) => selectActiveQuest(s)?.tool)
+  // During the quests only the task's tool works; the rest unlock for free play after.
+  const lock = useStoryStore(selectToolLock)
 
   return (
     <div className={`toolbar-wrap${touch ? ' touch' : ''}`}>
@@ -65,7 +67,8 @@ export function Toolbar() {
             key={t.id}
             className={`tool tool-${t.id}${t.id === tool ? ' active' : ''}${t.id === questTool && t.id !== tool ? ' quest-pulse' : ''}`}
             onClick={() => setTool(t.id)}
-            title={`${t.label} (${t.key})`}
+            disabled={!!lock && t.id !== lock}
+            title={lock && t.id !== lock ? `${t.label}: the captain needs ${lock} for this task` : `${t.label} (${t.key})`}
             aria-pressed={t.id === tool}
           >
             <span className="tool-icon">

@@ -120,3 +120,13 @@ export function selectActiveQuest(s: Pick<StoryState, 'phase' | 'questIndex' | '
   if (s.phase !== 'questing' || s.lastDone) return null
   return QUESTS[s.questIndex] ?? null
 }
+
+/**
+ * The only tool the visitor may use right now: the current quest's tool from
+ * the intro until the last quest is done (including the captain's "well done"
+ * pause, which locks to the next task's tool). Null once the island is free play.
+ */
+export function selectToolLock(s: Pick<StoryState, 'phase' | 'questIndex'>) {
+  if (s.phase !== 'intro' && s.phase !== 'questing') return null
+  return QUESTS[s.questIndex]?.tool ?? null
+}

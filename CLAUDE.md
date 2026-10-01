@@ -40,7 +40,7 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
   - `projects.ts`: **portfolio content** (`PROJECTS`, `CONTACT`). It currently holds TODO placeholders that the owner will replace.
   - `quests.ts`: the ordered quests. Each has a dialogue line, a `tool`, an `area`, a `condition(snapshot, area)` and a `landmark` kind. The current quests are lighthouse base, lighthouse top, pond, pier and big tree.
   - `landmarks.ts`: `placeLandmark()` picks an anchor tile and claims its tiles. `findPier()` finds the pier. `PIER_DIR` (-1 = west) sets which way the pier reaches; the pier model, its sparkles, the dock flag and `dockPath` all follow it.
-  - `useQuestWatcher.ts`: re-checks the active quest only when an island version counter changes.
+  - `useQuestWatcher.ts`: re-checks the active quest only when an island version counter changes. It also pins the island's `tool` to `selectToolLock()` (the current quest's tool, from intro until the last quest is done) and switches any other tool straight back. The Toolbar disables the other buttons. All tools unlock in the ending.
   - `useEndingDirector.ts`: starts docking, then calls `finishStory()`.
   - `shipPath.ts`: the arrive and dock curves. The ship sails in from the top-left of the default view (-x, since the camera sits at +x +z) in `ARRIVE_SECONDS` (2s) and waits off the island's west shore, where the pier quest builds out. Moving the waiting spot to another side means changing `ARRIVE_PATH`, `PIER_DIR` and the pier quest's `area` together.
 - `src/scene/`: R3F components (Island, Ocean, Ponds, Stones, Plants, Particles, Interaction, CameraRig, Lighting, HoverHighlight, PerfGovernor).

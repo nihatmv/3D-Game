@@ -58,10 +58,16 @@
 
 /* Hover lift only where there is a real hover (on phones it would stick after a tap). */
 @media (hover: hover) {
-  .tool:hover {
+  .tool:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.75);
     transform: translateY(-2px);
   }
+}
+
+/* Locked out by the current quest (the captain needs a different tool). */
+.tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .tool:focus-visible {
