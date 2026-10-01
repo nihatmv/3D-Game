@@ -42,7 +42,7 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   const quest = useStoryStore(selectActiveQuest)
   const building = useStoryStore((s) => s.building)
   const cardOpen = useStoryStore((s) => s.openCard !== null)
-  const { startQuests, skipStep, openProject } = useStoryStore.getState()
+  const { startQuests, openProject } = useStoryStore.getState()
   const touch = useTouchScreen()
   const [dismissed, setDismissed] = useState(false)
 
@@ -76,9 +76,6 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
         <span className="dlg-cue">
           {building ? 'Building…' : `👆 ${touch ? 'Tap' : 'Click'} the glowing spot`}
         </span>
-        <button className="dlg-btn ghost" onClick={skipStep}>
-          Skip this step
-        </button>
       </>
     )
   } else if (phase === 'ending') {
