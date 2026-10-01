@@ -1,20 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { useIslandStore } from '../../store/useIslandStore'
 import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
-import { QUESTS } from '../../story/quests'
-import { ToolIcon } from '../ToolIcons'
+import { QUESTS, TOUR } from '../../story/quests'
+import { useTouchScreen } from '../../hooks/useTouchScreen'
 import { PirateAvatar } from './PirateAvatar'
 import { bindShipBubble } from './shipBubble'
 
-const INTRO = [
-  'Ahoy there! Strange island... nobody’s charted this one.',
-  'Help us make it safe to dock? Everything you build tells us a little more about this place.',
-]
+const INTRO = 'Ahoy! Help us make this island safe to dock. Every landmark you raise shows a piece of its builder’s work.'
 
 const DOCKING = 'Everything’s ready, and look at that sky! Bringing her in to dock...'
 const DOCKED = 'We made it, just in time for sunset. Thank you, builder! Here’s who charted this island.'
-
-const capitalize = (s: string) => s[0].toUpperCase() + s.slice(1)
 
 /** Screens with room beside the ship for the speech bubble; smaller ones keep it above the toolbar. */
 const BESIDE_SHIP = '(min-width: 900px) and (min-height: 501px)'
@@ -31,7 +25,8 @@ function useBesideShip() {
 }
 
 /**
- * The captain's speech: intro, current task, and praise.
+ * The captain's speech: intro, current task, and praise. The intro and the
+ * praise move on by themselves (useTourDirector); tasks are one click on the glow.
  * `ship` floats beside the ship (wide screens); `toolbar` sits above the tools (phones).
  * Both are mounted and each renders only where it belongs.
  */
@@ -42,10 +37,9 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   const questIndex = useStoryStore((s) => s.questIndex)
   const lastDone = useStoryStore((s) => s.lastDone)
   const quest = useStoryStore(selectActiveQuest)
-  const { startQuests, clearLastDone, skipStep, openProject, setPortfolioOpen } = useStoryStore.getState()
-  const tool = useIslandStore((s) => s.tool)
-  const setTool = useIslandStore((s) => s.setTool)
-  const [introStep, setIntroStep] = useState(0)
+  const building = useStoryStore((s) => s.building)
+  const { startQuests, skipStep, openProject, setPortfolioOpen } = useStoryStore.getState()
+  const touch = useTouchScreen()
   const [dismissed, setDismissed] = useState(false)
 
   let line: string
@@ -56,35 +50,27 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   if (phase === 'intro') {
     // Wait until the ship is anchored before the captain speaks.
     if (shipState === 'arriving') return null
-    const last = introStep >= INTRO.length - 1
-    line = INTRO[introStep]
-    key = `intro-${introStep}`
+    line = INTRO
+    key = 'intro'
     actions = (
-      <button className="dlg-btn primary" onClick={() => (last ? startQuests() : setIntroStep(introStep + 1))}>
-        {last ? 'Let’s build!' : 'Next →'}
+      <button className="dlg-btn primary" onClick={startQuests}>
+        Let’s go →
       </button>
     )
   } else if (lastDone) {
     const done = QUESTS.find((q) => q.id === lastDone)!
     line = done.doneLine
     key = `done-${lastDone}`
-    actions = (
-      <button className="dlg-btn primary" onClick={clearLastDone}>
-        {phase === 'questing' ? 'Next task →' : 'Great!'}
-      </button>
-    )
+    actions = null
   } else if (quest) {
     line = quest.dialogue
     key = `quest-${quest.id}`
-    step = `Task ${questIndex + 1} of ${QUESTS.length}`
+    step = `${questIndex + 1} of ${TOUR.length}`
     actions = (
       <>
-        {tool !== quest.tool && (
-          <button className={`dlg-btn tool-chip tool-${quest.tool}`} onClick={() => setTool(quest.tool)}>
-            <ToolIcon tool={quest.tool} />
-            Use {capitalize(quest.tool)}
-          </button>
-        )}
+        <span className="dlg-cue">
+          {building ? 'Building…' : `👆 ${touch ? 'Tap' : 'Click'} the glowing spot`}
+        </span>
         <button className="dlg-btn ghost" onClick={skipStep}>
           Skip this step
         </button>

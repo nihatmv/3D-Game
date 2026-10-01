@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useStoryStore } from '../../store/useStoryStore'
-import { QUESTS } from '../../story/quests'
+import { TOUR } from '../../story/quests'
+import { Hero } from './Hero'
 import { PortfolioPanel } from './PortfolioPanel'
 import { ProjectCard } from './ProjectCard'
 import './Story.css'
@@ -28,18 +29,19 @@ export function StoryHud() {
   const setPortfolioOpen = useStoryStore((s) => s.setPortfolioOpen)
   const skipAll = useStoryStore((s) => s.skipAll)
   const finished = phase === 'ending' || phase === 'done'
+  const stops = TOUR.filter((q) => built.includes(q.id)).length
 
   return (
     <>
       <div className="story-hud">
-        <div className="story-progress" aria-label={`${built.length} of ${QUESTS.length} landmarks built`}>
+        <div className="story-progress" aria-label={`${stops} of ${TOUR.length} landmarks built`}>
           <span className="story-dots" aria-hidden>
-            {QUESTS.map((q) => (
+            {TOUR.map((q) => (
               <span key={q.id} className={built.includes(q.id) ? 'on' : ''} />
             ))}
           </span>
           <span>
-            {built.length} / {QUESTS.length} landmarks
+            {stops} / {TOUR.length} landmarks
           </span>
         </div>
         <button className="story-btn" onClick={() => setPortfolioOpen(!portfolioOpen)} aria-pressed={portfolioOpen}>
@@ -53,6 +55,7 @@ export function StoryHud() {
         </button>
       )}
 
+      <Hero />
       <PortfolioPanel />
       <ProjectCard />
     </>

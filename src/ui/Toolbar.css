@@ -11,6 +11,17 @@
   user-select: none;
 }
 
+/* Tools arrive for free play once the tour is over. */
+.toolbar-wrap.free .toolbar,
+.toolbar-wrap.free .toolbar-sub {
+  animation: toolbar-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes toolbar-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+
 .toolbar {
   display: flex;
   gap: 6px;
@@ -217,5 +228,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tool, .tool.active .tool-icon, .toolbar-hint, .tool.quest-pulse::before { animation: none; transition: none; }
+  .tool, .tool.active .tool-icon, .toolbar-hint, .tool.quest-pulse::before,
+  .toolbar-wrap.free .toolbar, .toolbar-wrap.free .toolbar-sub { animation: none; transition: none; }
 }

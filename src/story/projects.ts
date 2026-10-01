@@ -23,6 +23,8 @@ export type Project = {
 export type Contact = {
   name: string
   role: string
+  /** One line shown over the island on load: who you are and what you do. */
+  pitch: string
   /** Degree / education line. */
   education: string
   blurb: string
@@ -83,6 +85,7 @@ export const PROJECTS: Project[] = [
 export const CONTACT: Contact = {
   name: 'TODO Your Name',
   role: 'TODO Software Engineer',
+  pitch: 'TODO: I build full-stack products and embedded systems that ship.',
   education: 'TODO Degree, ADA University',
   blurb: 'TODO: One or two sentences about what you are looking for.',
   email: 'TODO@example.com',

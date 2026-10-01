@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import { HALF, MAX_LEVEL, MAX_STONE, TILE_COUNT, TileType } from '../world/constants'
-import { N8, idx, inBounds, initialIsland } from '../world/grid'
+import { N8, hash2, idx, inBounds, initialIsland } from '../world/grid'
 import { computePondLevels } from '../world/ponds'
 import { computeTerrainField, type TerrainField } from '../world/terrainField'
 import { MAX_PLANTS, isTree, plantRules, type PlantKind } from '../world/plantRules'
+import { DECOR_PLANTS, DECOR_STONES } from '../world/decor'
 
 export type Tool = 'soil' | 'stone' | 'water' | 'seeds'
 export type TileCoord = { x: number; z: number }
@@ -73,8 +74,26 @@ type IslandState = {
 }
 
 const initial = initialIsland()
+const initialStones = new Uint8Array(TILE_COUNT)
+for (const d of DECOR_STONES) {
+  const i = idx(d.x, d.z)
+  initialStones[i] = d.n
+  initial.type[i] = TileType.Stone
+}
 const initialPonds = new Float32Array(TILE_COUNT)
 computePondLevels(initial.height, initial.type, initialPonds)
+
+/** Decoration plants start fully grown (planted long ago), so nothing animates on load. */
+const initialPlants: Plant[] = DECOR_PLANTS.map((d, k) => ({
+  id: k + 1,
+  tile: idx(d.x, d.z),
+  ox: (hash2(d.x, d.z) - 0.5) * (isTree(d.kind) ? 0.2 : 0.5),
+  oz: (hash2(d.z, d.x) - 0.5) * (isTree(d.kind) ? 0.2 : 0.5),
+  kind: d.kind,
+  plantedAt: -1e9,
+  scale: 0.85 + hash2(k, 3) * 0.3,
+  rot: hash2(k, 5) * Math.PI * 2,
+}))
 
 export const useIslandStore = create<IslandState>((set, get) => {
   /** Recompute derived data and notify subscribers after a terrain edit. */
@@ -87,7 +106,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
   const commitStones = () => set({ stoneVersion: get().stoneVersion + 1 })
 
   const commitPlants = () => set({ plantVersion: get().plantVersion + 1 })
-  let nextPlantId = 1
+  let nextPlantId = initialPlants.length + 1
 
   /** Remove every plant on a tile. Returns true if any were removed. */
   const clearPlants = (i: number) => {
@@ -114,7 +133,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     pondLevel: initialPonds,
     field: computeTerrainField(initial.height, initial.type),
     terrainVersion: 0,
-    stones: new Uint8Array(TILE_COUNT),
+    stones: initialStones,
     stoneVersion: 0,
     locked: new Uint8Array(TILE_COUNT),
 
@@ -227,7 +246,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
       return true
     },
 
-    plants: [],
+    plants: initialPlants,
     plantVersion: 0,
 
     scatterSeeds: (wx, wz, count, radius) => {

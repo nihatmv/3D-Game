@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { AdditiveBlending, DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three'
 import { useIslandStore } from '../../store/useIslandStore'
-import { useStoryStore } from '../../store/useStoryStore'
+import { isTourActive, selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { PIER_DIR, findPier, type Placement } from '../../story/landmarks'
-import { QUESTS, type Quest } from '../../story/quests'
+import { runQuestBuild } from '../../story/questBuild'
+import { GRID } from '../../world/constants'
+import { QUESTS, onTarget, type Quest } from '../../story/quests'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { emit } from '../puffs'
 import { LAMP_R, LAMP_Y, PIER_DECK_Y, PIER_LENGTH, landmarkGeometry } from './landmarkGeometry'
@@ -115,7 +117,15 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
   }
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation()
-    if (e.button === 0) openProject(quest.projectId)
+    if (e.button !== 0) return
+    // During the tour a landmark standing on the next target (the lighthouse base) is part of it.
+    const story = useStoryStore.getState()
+    const next = selectActiveQuest(story)
+    if (isTourActive(story)) {
+      if (next && onTarget(next.area, at.tile % GRID, Math.floor(at.tile / GRID))) runQuestBuild(next)
+      return
+    }
+    openProject(quest.projectId)
   }
 
   return (

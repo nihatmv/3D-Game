@@ -4,11 +4,16 @@ import { OrbitControls } from '@react-three/drei'
 import { MOUSE, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { HALF } from '../world/constants'
+import { isTourActive, useStoryStore } from '../store/useStoryStore'
 
 const TARGET_MIN = new Vector3(-HALF + 2, 0.5, -HALF + 2)
 const TARGET_MAX = new Vector3(HALF - 2, 0.5, HALF - 2)
-/** Fraction of the screen height the view is shifted (bottom UI takes the lower part). */
-const VIEW_SHIFT = 0.12
+/**
+ * Fraction of the screen height the view is shifted. Small screens keep the
+ * captain above the toolbar, so the island moves up; wide screens have the
+ * captain beside the ship (see Dialogue's BESIDE_SHIP) and need little room.
+ */
+const viewShift = (w: number, h: number) => (w >= 900 && h > 500 ? 0.03 : 0.12)
 /** Distance of the starting camera from the island centre. */
 const START = new Vector3(20, 17, 20)
 const BASE_DISTANCE = START.length()
@@ -22,6 +27,7 @@ function fitDistance(aspect: number) {
  * Right-drag orbits, middle-drag pans, wheel zooms. Left button is left free
  * for the tools. On touch, one finger is for the tools and two fingers turn and
  * zoom. Polar angle is clamped so the camera never dips under water.
+ * Locked during the tour (the framing is fixed); free play unlocks it.
  */
 export function CameraRig() {
   const ref = useRef<OrbitControlsImpl>(null)
@@ -29,6 +35,7 @@ export function CameraRig() {
   const { width, height } = useThree((s) => s.size)
   const fitted = useRef(BASE_DISTANCE)
   const distance = fitDistance(width / height)
+  const touring = useStoryStore((s) => isTourActive(s))
 
   // Re-frame when the screen shape changes a lot (phone rotated), not on small resizes.
   useEffect(() => {
@@ -40,9 +47,14 @@ export function CameraRig() {
     c.update()
   }, [camera, distance])
 
+  // Dev-only handle for headless tests (project world points to the screen).
+  useEffect(() => {
+    if (import.meta.env.DEV) (window as unknown as { camera: typeof camera }).camera = camera
+  }, [camera])
+
   // Shift the rendered view down so the island sits above the dialogue and toolbar.
   useEffect(() => {
-    camera.setViewOffset(width, height, 0, Math.round(height * VIEW_SHIFT), width, height)
+    camera.setViewOffset(width, height, 0, Math.round(height * viewShift(width, height)), width, height)
     camera.updateProjectionMatrix()
   }, [camera, width, height])
 
@@ -50,6 +62,7 @@ export function CameraRig() {
     <OrbitControls
       ref={ref}
       makeDefault
+      enabled={!touring}
       target={[0, 0.5, 0]}
       enableDamping
       dampingFactor={0.08}
