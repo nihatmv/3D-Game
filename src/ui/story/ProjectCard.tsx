@@ -1,8 +1,8 @@
 import { useStoryStore } from '../../store/useStoryStore'
-import { CONTACT, projectById } from '../../story/projects'
+import { CONTACT, EDUCATION, projectById } from '../../story/projects'
 import { QUESTS } from '../../story/quests'
 import { PirateAvatar } from './PirateAvatar'
-import { CvLink, ProjectLinks, ProjectMedia, ProjectResult, StackChips } from './ProjectBody'
+import { ContactLinks, CvLink, Portrait, ProjectLinks, ProjectMedia, ProjectResult, StackChips } from './ProjectBody'
 import { ProjectDemo } from './ProjectDemo'
 
 /**
@@ -24,12 +24,16 @@ export function ProjectCard() {
         <button className="pf-close" onClick={closeCard} aria-label="Close">
           ✕
         </button>
-        {CONTACT.photo && <img className="pf-photo" src={CONTACT.photo} alt={CONTACT.name} />}
+        <Portrait className="pf-photo" />
         <div className="pf-eyebrow">The ship has docked</div>
         <h2>{CONTACT.name}</h2>
         <p className="pf-pitch">{CONTACT.role}</p>
         <p className="pf-details">{CONTACT.blurb}</p>
-        <p className="pf-edu">🎓 {CONTACT.education}</p>
+        {EDUCATION[0] && (
+          <p className="pf-edu">
+            🎓 {EDUCATION[0].degree}, {EDUCATION[0].school}
+          </p>
+        )}
         <ContactLinks />
       </aside>
     )
@@ -69,33 +73,5 @@ export function ProjectCard() {
         </button>
       </div>
     </aside>
-  )
-}
-
-export function ContactLinks() {
-  const { email, linkedin, github, cv } = CONTACT
-  return (
-    <div className="pf-links">
-      {email && (
-        <a className="pf-link primary" href={`mailto:${email}`}>
-          Email me
-        </a>
-      )}
-      {linkedin && (
-        <a className="pf-link" href={linkedin} target="_blank" rel="noreferrer">
-          LinkedIn ↗
-        </a>
-      )}
-      {github && (
-        <a className="pf-link" href={github} target="_blank" rel="noreferrer">
-          GitHub ↗
-        </a>
-      )}
-      {cv && (
-        <a className="pf-link" href={cv} target="_blank" rel="noreferrer" download>
-          Download CV ⬇
-        </a>
-      )}
-    </div>
   )
 }

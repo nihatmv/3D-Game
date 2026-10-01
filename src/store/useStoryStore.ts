@@ -23,8 +23,6 @@ type StoryState = {
   openCard: CardId | null
   /** Landmark the camera flies to while its card is open (CameraRig), or null for the home view. */
   focus: Placement | null
-  /** The plain list view of the whole portfolio. */
-  portfolioOpen: boolean
   shipState: ShipState
   /** Sunset tween target: 0 = day, 1 = golden hour. */
   sunset: number
@@ -37,13 +35,12 @@ type StoryState = {
   clearLastDone: () => void
   /** Build the active quest's landmark without doing the task. */
   skipStep: () => void
-  /** Build everything, go to the ending and show the full portfolio. */
+  /** Build everything and go to the ending (dev and tests; visitors who skip get the /portfolio page). */
   skipAll: () => void
   /** Open a card; with `at`, the camera flies to that landmark too. */
   openProject: (id: CardId, at?: Placement) => void
   /** Close the card and fly home. In the tour this is "Continue": useTourDirector then shows the next task. */
   closeCard: () => void
-  setPortfolioOpen: (open: boolean) => void
   setShipState: (s: ShipState) => void
   /** The tour is done: build the `auto` landmarks (the pier) and sail in as the sun goes down. */
   startDocking: () => void
@@ -60,7 +57,6 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   lastDone: null,
   openCard: null,
   focus: null,
-  portfolioOpen: false,
   shipState: 'arriving',
   sunset: 0,
 
@@ -104,7 +100,6 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       lastDone: null,
       openCard: null,
       focus: null,
-      portfolioOpen: true,
     })
     // Place every landmark still missing, in order (the lighthouse top needs its base).
     const placed = { ...get().placed }
@@ -114,7 +109,6 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
   openProject: (id, at) => set({ openCard: id, focus: at ?? null }),
   closeCard: () => set({ openCard: null, focus: null }),
-  setPortfolioOpen: (portfolioOpen) => set({ portfolioOpen }),
   setShipState: (shipState) => set({ shipState }),
   startDocking: () => {
     const { shipState, built } = get()
@@ -132,9 +126,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     })
   },
   finishStory: () => {
-    // Skippers already have the full list open, which includes the contact info.
-    const { portfolioOpen, openCard } = get()
-    set({ phase: 'done', openCard: portfolioOpen ? openCard : 'contact', focus: null })
+    set({ phase: 'done', openCard: 'contact', focus: null })
   },
 }))
 

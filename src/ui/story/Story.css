@@ -27,6 +27,7 @@
 }
 
 .story-btn {
+  text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -48,7 +49,6 @@
 
 .story-btn:focus-visible,
 .pf-close:focus-visible,
-.pf-item-title:focus-visible,
 .pf-link:focus-visible {
   outline: 2px solid #e9a55a;
   outline-offset: 2px;
@@ -248,6 +248,7 @@
 }
 
 .dlg-btn {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -307,8 +308,7 @@
 
 /* ---------- Card and panel ---------- */
 
-.pf-card,
-.pf-panel {
+.pf-card {
   position: fixed;
   top: 64px;
   right: 16px;
@@ -643,6 +643,20 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+/* Placeholder portrait (initials) until CONTACT.photo is set. */
+.pf-photo-empty {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #cdf1ee, #ffe7b8);
+  color: rgba(74, 58, 44, 0.55);
+  font-size: 38px;
+  font-weight: 700;
+}
+
+.pf-photo.pf-photo-empty {
+  font-size: 28px;
+}
+
 /* No landmark beside the contact card: it sits in the very middle. */
 .pf-contact-card {
   left: 0;
@@ -650,12 +664,8 @@
   margin: auto;
 }
 
-.pf-panel {
-  z-index: 2;
-}
 
-.pf-card h2,
-.pf-panel h2 {
+.pf-card h2 {
   margin: 2px 0 4px;
   font-size: 22px;
   line-height: 1.2;
@@ -779,66 +789,13 @@
   background: #db8f3f;
 }
 
-.pf-panel-head {
-  padding-right: 36px;
-  margin-bottom: 10px;
-}
 
-.pf-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
 
-.pf-item {
-  padding: 14px 0;
-  border-top: 1px solid rgba(107, 86, 68, 0.12);
-}
 
-.pf-item-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  margin: 0 0 4px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: #4a3a2c;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
-}
 
-.pf-item-title:hover span:first-child {
-  text-decoration: underline;
-  text-decoration-color: #e9a55a;
-  text-underline-offset: 3px;
-}
 
-.pf-badge {
-  flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(107, 86, 68, 0.08);
-  font-size: 10.5px;
-  font-weight: 700;
-  opacity: 0.75;
-}
 
-.pf-badge.built {
-  background: #ffe7b8;
-  color: #9a5421;
-  opacity: 1;
-}
 
-.pf-contact {
-  padding-top: 14px;
-  border-top: 1px solid rgba(107, 86, 68, 0.12);
-}
 
 @keyframes pf-in {
   from { opacity: 0; transform: translateX(24px); }
@@ -852,8 +809,7 @@
   .hero { top: calc(100px + env(safe-area-inset-top)); padding: 12px 16px 14px; }
   .hero-pitch { font-size: 13.5px; }
   .story-progress, .story-btn { min-height: 36px; box-sizing: border-box; font-size: 12px; padding: 6px 12px; }
-  .pf-card,
-  .pf-panel {
+  .pf-card {
     top: auto;
     left: 8px;
     right: 8px;
@@ -886,8 +842,7 @@
   .story-skip { top: 8px; }
   .hero { top: 52px; padding: 8px 16px 10px; }
   .hero-pitch { display: none; }
-  .pf-card,
-  .pf-panel { top: 52px; bottom: 8px; }
+  .pf-card { top: 52px; bottom: 8px; }
   .pf-card { max-height: calc(100vh - 60px); }
 }
 
@@ -897,6 +852,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-card, .pf-panel, .story-btn, .dlg, .dlg-body, .hero,
+  .pf-card, .story-btn, .dlg, .dlg-body, .hero,
   .lm-label, .lm-dot.live, .pf-wave-track, .pf-milestone-arrow { animation: none; transition: none; }
 }

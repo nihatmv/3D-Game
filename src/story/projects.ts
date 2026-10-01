@@ -1,6 +1,7 @@
 /**
  * Portfolio content. This is the only file to edit when projects change:
- * quests point at projects by `id`, and every UI panel reads from here.
+ * quests point at projects by `id`, and every UI panel (the island cards and
+ * the /portfolio page) reads from here.
  *
  * TODO: replace the placeholder text, links and media with the real content.
  */
@@ -50,8 +51,6 @@ export type Contact = {
   role: string
   /** One line shown over the island on load: who you are and what you do. */
   pitch: string
-  /** Degree / education line. */
-  education: string
   blurb: string
   email?: string
   linkedin?: string
@@ -124,12 +123,48 @@ export const CONTACT: Contact = {
   name: 'TODO Your Name',
   role: 'TODO Software Engineer',
   pitch: 'TODO: I build full-stack products and embedded systems that ship.',
-  education: 'TODO Degree, ADA University',
   blurb: 'TODO: One or two sentences about what you are looking for.',
   email: 'TODO@example.com',
   linkedin: 'https://linkedin.com/in/TODO',
   github: 'https://github.com/TODO',
   cv: '/cv.pdf',
 }
+
+export type Experience = {
+  role: string
+  org: string
+  /** e.g. '2024 – now'. */
+  when: string
+  /** One or two lines on what you did and the result. */
+  summary: string
+}
+
+/** Newest first. Shown on the /portfolio page. */
+export const EXPERIENCE: Experience[] = [
+  {
+    role: 'TODO Software Engineer',
+    org: 'SABAH.HUB',
+    when: 'TODO 2025 – now',
+    summary: 'TODO: Joined as an intern, went full-time. What you own and one result.',
+  },
+  {
+    role: 'TODO Software Engineering Intern',
+    org: 'SABAH.HUB',
+    when: 'TODO 2024 – 2025',
+    summary: 'TODO: What you built as an intern.',
+  },
+]
+
+export type Education = { degree: string; school: string; when: string; note?: string }
+
+/** Newest first. The first entry also appears on the contact card. */
+export const EDUCATION: Education[] = [
+  {
+    degree: 'TODO B.Sc. Computer Engineering',
+    school: 'ADA University',
+    when: 'TODO 2021 – 2025',
+    note: 'TODO: Senior design project: the Breathing Monitor.',
+  },
+]
 
 export const projectById = (id: string) => PROJECTS.find((p) => p.id === id)

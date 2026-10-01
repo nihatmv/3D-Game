@@ -65,3 +65,47 @@ export function ProjectLinks({ project }: { project: Project }) {
     </div>
   )
 }
+
+/** Photo from CONTACT.photo, or a circle with initials until there is one. */
+export function Portrait({ className }: { className: string }) {
+  if (CONTACT.photo) return <img className={className} src={CONTACT.photo} alt={CONTACT.name} />
+  const initials = CONTACT.name
+    .replace(/^TODO\s*/, '')
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+  return (
+    <div className={`${className} pf-photo-empty`} aria-hidden>
+      {initials}
+    </div>
+  )
+}
+
+export function ContactLinks() {
+  const { email, linkedin, github, cv } = CONTACT
+  return (
+    <div className="pf-links">
+      {email && (
+        <a className="pf-link primary" href={`mailto:${email}`}>
+          Email me
+        </a>
+      )}
+      {linkedin && (
+        <a className="pf-link" href={linkedin} target="_blank" rel="noreferrer">
+          LinkedIn ↗
+        </a>
+      )}
+      {github && (
+        <a className="pf-link" href={github} target="_blank" rel="noreferrer">
+          GitHub ↗
+        </a>
+      )}
+      {cv && (
+        <a className="pf-link" href={cv} target="_blank" rel="noreferrer" download>
+          Download CV ⬇
+        </a>
+      )}
+    </div>
+  )
+}

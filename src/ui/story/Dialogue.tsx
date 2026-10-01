@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { TOUR } from '../../story/quests'
 import { useTouchScreen } from '../../hooks/useTouchScreen'
+import { PORTFOLIO_PATH } from '../../routes'
 import { PirateAvatar } from './PirateAvatar'
 import { bindShipBubble } from './shipBubble'
 
@@ -39,7 +40,7 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   const quest = useStoryStore(selectActiveQuest)
   const building = useStoryStore((s) => s.building)
   const cardOpen = useStoryStore((s) => s.openCard !== null)
-  const { startQuests, skipStep, openProject, setPortfolioOpen } = useStoryStore.getState()
+  const { startQuests, skipStep, openProject } = useStoryStore.getState()
   const touch = useTouchScreen()
   const [dismissed, setDismissed] = useState(false)
 
@@ -90,9 +91,9 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
         <button className="dlg-btn ghost" onClick={() => setDismissed(true)}>
           Keep building
         </button>
-        <button className="dlg-btn" onClick={() => setPortfolioOpen(true)}>
+        <a className="dlg-btn" href={PORTFOLIO_PATH}>
           All projects
-        </button>
+        </a>
         <button className="dlg-btn primary" onClick={() => openProject('contact')}>
           Get in touch
         </button>
