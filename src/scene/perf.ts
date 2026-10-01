@@ -28,3 +28,14 @@ export function wake(ms = 1500) {
 export function isAwake(now: number) {
   return now < awakeUntil
 }
+
+let lowPower = false
+
+/** Set by the performance monitor on slow machines; optional eye candy turns off. */
+export function setLowPower(v: boolean) {
+  lowPower = v
+}
+
+export function isLowPower() {
+  return lowPower
+}

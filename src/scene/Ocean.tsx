@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, ShaderMaterial, UniformsLib, UniformsUtils, Vector2 } from 'three'
 import { useIslandStore } from '../store/useIslandStore'
@@ -11,6 +11,14 @@ import {
   createShoreTexture,
   updateShoreTexture,
 } from '../world/shoreField'
+import { SUNSET_PALETTE, sunset } from './story/sunset'
+
+const DEEP_DAY = new Color(PALETTE.deepWater)
+const DEEP_EVE = new Color(SUNSET_PALETTE.deepWater)
+const SHALLOW_DAY = new Color(PALETTE.water)
+const SHALLOW_EVE = new Color(SUNSET_PALETTE.water)
+const FOAM_DAY = new Color('#f6fbf4')
+const FOAM_EVE = new Color(SUNSET_PALETTE.foam)
 
 const vertexShader = /* glsl */ `
   uniform float uTime;
@@ -99,9 +107,9 @@ export function Ocean() {
             uShoreMin: { value: new Vector2(SHORE_MIN, SHORE_MIN) },
             uShoreExtent: { value: SHORE_EXTENT },
             uMaxDist: { value: SHORE_MAX_DIST },
-            uDeep: { value: new Color(PALETTE.deepWater) },
-            uShallow: { value: new Color(PALETTE.water) },
-            uFoam: { value: new Color('#f6fbf4') },
+            uDeep: { value: DEEP_DAY.clone() },
+            uShallow: { value: SHALLOW_DAY.clone() },
+            uFoam: { value: FOAM_DAY.clone() },
           },
         ]),
       }),
@@ -128,8 +136,18 @@ export function Ocean() {
     shoreTex.dispose()
   }, [material, shoreTex])
 
+  const lastSunset = useRef(0)
   useFrame((_, dt) => {
     material.uniforms.uTime.value += dt
+    // Warm the water along with the sky at the end of the story.
+    if (sunset.t !== lastSunset.current) {
+      lastSunset.current = sunset.t
+      const k = sunset.t * sunset.t * (3 - 2 * sunset.t)
+      const u = material.uniforms
+      u.uDeep.value.lerpColors(DEEP_DAY, DEEP_EVE, k)
+      u.uShallow.value.lerpColors(SHALLOW_DAY, SHALLOW_EVE, k)
+      u.uFoam.value.lerpColors(FOAM_DAY, FOAM_EVE, k)
+    }
   })
 
   return (

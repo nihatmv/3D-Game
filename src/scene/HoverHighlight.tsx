@@ -7,6 +7,7 @@ import { idx } from '../world/grid'
 import { stackHeight } from '../world/stones'
 import { canApply } from '../world/toolRules'
 import { isShiftHeld } from './modifiers'
+import { isLandmarkHovered } from './story/landmarkHover'
 import { useThree } from '@react-three/fiber'
 
 const vertexShader = /* glsl */ `
@@ -72,7 +73,8 @@ export function HoverHighlight() {
     const targetOpacity = hover ? 1 : 0
     material.uniforms.uOpacity.value += (targetOpacity - material.uniforms.uOpacity.value) * k
     if (!hover) {
-      if (canvas.style.cursor) canvas.style.cursor = ''
+      const cursor = isLandmarkHovered() ? 'pointer' : ''
+      if (canvas.style.cursor !== cursor) canvas.style.cursor = cursor
       return
     }
     const reverse = isShiftHeld()

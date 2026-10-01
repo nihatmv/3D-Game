@@ -7,6 +7,7 @@ type TileState = {
   height: Uint8Array
   type: Uint8Array
   stones: Uint8Array
+  locked: Uint8Array
   plants: ReadonlyArray<{ tile: number }>
 }
 
@@ -16,6 +17,7 @@ type TileState = {
  */
 export function canApply(s: TileState, tool: Tool, reverse: boolean, x: number, z: number): boolean {
   const i = idx(x, z)
+  if (s.locked[i]) return false
   const h = s.height[i]
   const water = s.type[i] === TileType.Water
   switch (tool) {

@@ -35,6 +35,8 @@ type IslandState = {
   /** Stone pieces stacked on each tile (0..MAX_STONE). Watch stoneVersion. */
   stones: Uint8Array
   stoneVersion: number
+  /** 1 where a landmark stands: no tool can change these tiles. */
+  locked: Uint8Array
 
   tool: Tool
   hover: TileCoord | null
@@ -62,6 +64,9 @@ type IslandState = {
   scatterSeeds: (wx: number, wz: number, count: number, radius: number) => number
   /** Seeds + shift: clear every plant on a tile. */
   removePlants: (x: number, z: number) => boolean
+
+  /** A landmark takes these tiles: optionally clear stones/plants, and lock `lock` against edits. */
+  claimTiles: (clear: number[], lock: number[], what: { stones?: boolean; plants?: boolean }) => void
 }
 
 const initial = initialIsland()
@@ -108,6 +113,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     terrainVersion: 0,
     stones: new Uint8Array(TILE_COUNT),
     stoneVersion: 0,
+    locked: new Uint8Array(TILE_COUNT),
 
     tool: 'soil',
     hover: null,
@@ -120,6 +126,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     },
 
     raise: (x, z) => {
+      if (get().locked[idx(x, z)]) return false
       const { height, type, stones } = get()
       const i = idx(x, z)
       if (type[i] === TileType.Water) {
@@ -137,6 +144,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     },
 
     lower: (x, z) => {
+      if (get().locked[idx(x, z)]) return false
       const { height, type } = get()
       const i = idx(x, z)
       if (height[i] === 0) return false
@@ -151,6 +159,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     },
 
     dig: (x, z) => {
+      if (get().locked[idx(x, z)]) return false
       const { height, type } = get()
       const i = idx(x, z)
       const h = height[i]
@@ -174,6 +183,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     },
 
     fill: (x, z) => {
+      if (get().locked[idx(x, z)]) return false
       const { height, type } = get()
       const i = idx(x, z)
       if (type[i] !== TileType.Water) return false
@@ -184,6 +194,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     },
 
     addStone: (x, z) => {
+      if (get().locked[idx(x, z)]) return false
       const { height, type, stones } = get()
       const i = idx(x, z)
       if (height[i] === 0 || type[i] === TileType.Water || stones[i] >= MAX_STONE) return false
@@ -198,6 +209,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     },
 
     removeStone: (x, z) => {
+      if (get().locked[idx(x, z)]) return false
       const { type, stones } = get()
       const i = idx(x, z)
       if (stones[i] === 0) return false
@@ -214,7 +226,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     plantVersion: 0,
 
     scatterSeeds: (wx, wz, count, radius) => {
-      const { height, type, stones, pondLevel, plants } = get()
+      const { height, type, stones, pondLevel, plants, locked } = get()
       const now = performance.now()
       let grown = 0
       for (let n = 0; n < count && plants.length < MAX_PLANTS; n++) {
@@ -227,6 +239,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
         const z = Math.floor(pz + HALF)
         if (!inBounds(x, z)) continue
         const i = idx(x, z)
+        if (locked[i]) continue
 
         let nearWater = false
         for (const [dx, dz] of N8) {
@@ -272,7 +285,24 @@ export const useIslandStore = create<IslandState>((set, get) => {
       return grown
     },
 
-    removePlants: (x, z) => clearPlants(idx(x, z)),
+    removePlants: (x, z) => !get().locked[idx(x, z)] && clearPlants(idx(x, z)),
+
+    claimTiles: (clear, lock, what) => {
+      const { stones, type, locked } = get()
+      let terrain = false
+      for (const i of clear) {
+        if (what.plants) clearPlants(i)
+        if (what.stones && stones[i] > 0) {
+          clearStones(i)
+          if (type[i] === TileType.Stone) {
+            type[i] = TileType.Grass
+            terrain = true
+          }
+        }
+      }
+      for (const i of lock) locked[i] = 1
+      if (terrain) commitTerrain()
+    },
   }
 })
 

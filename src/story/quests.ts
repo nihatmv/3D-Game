@@ -1,0 +1,129 @@
+import { MAX_STONE, TILE_COUNT, TileType } from '../world/constants'
+import { idx, inBounds, initialIsland } from '../world/grid'
+import { isTree, type PlantKind } from '../world/plantRules'
+import type { Tool } from '../store/useIslandStore'
+
+/**
+ * The captain's tasks, in order. Each one is pure data plus a condition that
+ * reads the island state, so adding or reordering quests never touches game code.
+ */
+
+export type LandmarkKind = 'lighthouseBase' | 'lighthouseTop' | 'pondRipples' | 'pier' | 'bigTree'
+
+/** Tile-space circle: centre tile and radius in tiles. */
+export type Area = { x: number; z: number; r: number }
+
+export type IslandSnapshot = {
+  height: Uint8Array
+  type: Uint8Array
+  stones: Uint8Array
+  plants: ReadonlyArray<{ tile: number; kind: PlantKind }>
+}
+
+export type Quest = {
+  id: string
+  /** Project unlocked by this quest (see projects.ts). */
+  projectId: string
+  /** The captain's instruction. */
+  dialogue: string
+  /** What the captain says once it's built. */
+  doneLine: string
+  tool: Tool
+  area: Area
+  condition: (s: IslandSnapshot, area: Area) => boolean
+  landmark: LandmarkKind
+  /** Build on the same tile as an earlier quest's landmark. */
+  anchorOf?: string
+}
+
+/** Tiles inside the area's circle. */
+export function tilesInArea(a: Area): number[] {
+  const out: number[] = []
+  const r = Math.ceil(a.r)
+  for (let dz = -r; dz <= r; dz++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const x = a.x + dx
+      const z = a.z + dz
+      if (inBounds(x, z) && dx * dx + dz * dz <= a.r * a.r) out.push(idx(x, z))
+    }
+  }
+  return out
+}
+
+export function countInArea(a: Area, pred: (i: number) => boolean): number {
+  let n = 0
+  for (const i of tilesInArea(a)) if (pred(i)) n++
+  return n
+}
+
+export function sumInArea(a: Area, value: (i: number) => number): number {
+  let n = 0
+  for (const i of tilesInArea(a)) n += value(i)
+  return n
+}
+
+/** Which tiles were open ocean at the start, so "extend the island" counts new land only. */
+const startHeight = initialIsland().height
+const wasOcean = new Uint8Array(TILE_COUNT)
+for (let i = 0; i < TILE_COUNT; i++) wasOcean[i] = startHeight[i] === 0 ? 1 : 0
+
+const plantsInArea = (s: IslandSnapshot, a: Area, pred: (kind: PlantKind) => boolean) => {
+  const tiles = new Set(tilesInArea(a))
+  let n = 0
+  for (const p of s.plants) if (tiles.has(p.tile) && pred(p.kind)) n++
+  return n
+}
+
+export const QUESTS: Quest[] = [
+  {
+    id: 'lighthouse-base',
+    projectId: 'breathing-monitor',
+    dialogue: 'Rocky waters out here. Lay a few stones on that high ground, and we can build a lighthouse.',
+    doneLine: 'A solid foundation! Every good thing starts with the hardware.',
+    tool: 'stone',
+    area: { x: 13, z: 13, r: 1.5 },
+    condition: (s, a) => sumInArea(a, (i) => s.stones[i]) >= 3,
+    landmark: 'lighthouseBase',
+  },
+  {
+    id: 'lighthouse-top',
+    projectId: 'gitpulse',
+    dialogue: 'Now stack a tower all the way up beside the base. We’ll carry the stones up top!',
+    doneLine: 'There it is, a beam across the water. Signals sent and received!',
+    tool: 'stone',
+    area: { x: 13, z: 13, r: 1.5 },
+    condition: (s, a) => countInArea(a, (i) => s.stones[i] >= MAX_STONE) >= 1,
+    landmark: 'lighthouseTop',
+    anchorOf: 'lighthouse-base',
+  },
+  {
+    id: 'pond',
+    projectId: 'cue',
+    dialogue: 'Our water barrels are dry. Could you dig a pond for us?',
+    doneLine: 'Listen to those ripples. Waves turn into a signal.',
+    tool: 'water',
+    area: { x: 17, z: 15, r: 1.5 },
+    condition: (s, a) => countInArea(a, (i) => s.type[i] === TileType.Water) >= 2,
+    landmark: 'pondRipples',
+  },
+  {
+    id: 'pier',
+    projectId: 'remote-job-globe',
+    dialogue: 'We can’t reach the shore from here. Raise some land out toward the ship!',
+    doneLine: 'The island reaches out to the world. Nearly close enough to dock!',
+    tool: 'soil',
+    area: { x: 25, z: 16, r: 1.5 },
+    condition: (s, a) => countInArea(a, (i) => wasOcean[i] === 1 && s.height[i] > 0) >= 3,
+    landmark: 'pier',
+  },
+  {
+    id: 'tree',
+    projectId: 'sabah-hub',
+    dialogue: 'A bit of shade would be lovely. Plant some seeds over there.',
+    doneLine: 'From a tiny seed to a full tree. That’s real growth.',
+    tool: 'seeds',
+    area: { x: 14, z: 18, r: 1.5 },
+    condition: (s, a) => plantsInArea(s, a, () => true) >= 3 || plantsInArea(s, a, isTree) >= 1,
+    landmark: 'bigTree',
+  },
+]

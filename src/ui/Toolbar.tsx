@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useIslandStore, type Tool } from '../store/useIslandStore'
+import { selectActiveQuest, useStoryStore } from '../store/useStoryStore'
 import { useToolHotkeys } from '../hooks/useToolHotkeys'
 import { ToolIcon } from './ToolIcons'
+import { Dialogue } from './story/Dialogue'
 import './Toolbar.css'
 
 type ToolDef = { id: Tool; key: string; label: string; hint: string; removeHint: string }
@@ -37,9 +39,11 @@ export function Toolbar() {
   const setTool = useIslandStore((s) => s.setTool)
   const shift = useShiftHeld()
   const active = TOOLS.find((t) => t.id === tool)!
+  const questTool = useStoryStore((s) => selectActiveQuest(s)?.tool)
 
   return (
     <div className="toolbar-wrap">
+      <Dialogue />
       <div className={`toolbar-hint${shift ? ' remove' : ''}`} key={`${tool}-${shift}`}>
         {shift ? active.removeHint : active.hint}
         {!shift && <span className="toolbar-hint-sub"> · hold Shift to undo</span>}
@@ -48,7 +52,7 @@ export function Toolbar() {
         {TOOLS.map((t) => (
           <button
             key={t.id}
-            className={`tool tool-${t.id}${t.id === tool ? ' active' : ''}`}
+            className={`tool tool-${t.id}${t.id === tool ? ' active' : ''}${t.id === questTool && t.id !== tool ? ' quest-pulse' : ''}`}
             onClick={() => setTool(t.id)}
             title={`${t.label} (${t.key})`}
             aria-pressed={t.id === tool}

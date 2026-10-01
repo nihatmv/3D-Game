@@ -1,0 +1,436 @@
+/* Story-mode overlays. Same warm paper look as the toolbar, solid (no backdrop blur). */
+
+.story-hud {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  user-select: none;
+}
+
+.story-progress,
+.story-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.93);
+  box-shadow: 0 6px 18px rgba(120, 80, 40, 0.14);
+  color: #6b5644;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.story-btn {
+  cursor: pointer;
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.18s;
+}
+
+.story-btn:hover {
+  transform: translateY(-2px);
+  background: #fff;
+}
+
+.story-btn[aria-pressed='true'] {
+  background: #ffe7b8;
+}
+
+.story-btn:focus-visible,
+.pf-close:focus-visible,
+.pf-item-title:focus-visible,
+.pf-link:focus-visible {
+  outline: 2px solid #e9a55a;
+  outline-offset: 2px;
+}
+
+.story-skip {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  font-weight: 600;
+}
+
+.story-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.story-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(107, 86, 68, 0.2);
+  transition: background 0.3s;
+}
+
+.story-dots span.on {
+  background: #e9a55a;
+}
+
+/* ---------- Captain dialogue (sits above the toolbar, inside .toolbar-wrap) ---------- */
+
+.dlg {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: min(520px, calc(100vw - 32px));
+  box-sizing: border-box;
+  margin-bottom: 4px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: rgba(255, 250, 242, 0.96);
+  box-shadow: 0 12px 34px rgba(120, 80, 40, 0.2);
+  pointer-events: auto;
+  animation: dlg-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dlg-avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6fd6d0, #3fb8c2);
+  color: #fff;
+  font-size: 20px;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.08);
+}
+
+.dlg-body {
+  flex: 1;
+  min-width: 0;
+  animation: hint-in 0.25s ease-out;
+}
+
+.dlg-name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2f8f98;
+}
+
+.dlg-step {
+  color: #b39a82;
+  letter-spacing: 0.04em;
+}
+
+.dlg-line {
+  margin: 3px 0 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #4a3a2c;
+}
+
+.dlg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.dlg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(107, 86, 68, 0.08);
+  color: #5b4a3a;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dlg-btn:hover {
+  background: rgba(107, 86, 68, 0.15);
+}
+
+.dlg-btn:focus-visible {
+  outline: 2px solid #e9a55a;
+  outline-offset: 2px;
+}
+
+.dlg-btn.primary {
+  background: #e9a55a;
+  color: #fff;
+}
+
+.dlg-btn.primary:hover {
+  background: #db8f3f;
+}
+
+.dlg-btn.ghost {
+  background: transparent;
+  opacity: 0.7;
+}
+
+.dlg-btn.ghost:hover {
+  opacity: 1;
+  background: rgba(107, 86, 68, 0.08);
+}
+
+.dlg-btn.tool-chip {
+  background: #ffe7b8;
+}
+
+.dlg-btn.tool-chip svg {
+  width: 18px;
+  height: 18px;
+}
+
+@keyframes dlg-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Card and panel ---------- */
+
+.pf-card,
+.pf-panel {
+  position: fixed;
+  top: 64px;
+  right: 16px;
+  bottom: 16px;
+  width: min(380px, calc(100vw - 32px));
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 20px 20px 22px;
+  border-radius: 22px;
+  background: rgba(255, 250, 242, 0.97);
+  box-shadow: 0 18px 50px rgba(120, 80, 40, 0.22);
+  color: #5b4a3a;
+  animation: pf-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pf-card {
+  z-index: 3;
+  bottom: auto;
+  max-height: calc(100vh - 80px);
+}
+
+.pf-panel {
+  z-index: 2;
+}
+
+.pf-card h2,
+.pf-panel h2 {
+  margin: 2px 0 4px;
+  font-size: 22px;
+  line-height: 1.2;
+  color: #4a3a2c;
+}
+
+.pf-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c0803e;
+}
+
+.pf-pitch {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.pf-details {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.55;
+  opacity: 0.9;
+}
+
+.pf-edu {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.pf-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  /* Solid so it stays readable over a screenshot. */
+  background: #f6ece0;
+  box-shadow: 0 2px 6px rgba(120, 80, 40, 0.12);
+  color: #6b5644;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pf-close:hover {
+  background: #eedfcd;
+}
+
+.pf-media {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #f3e6d4;
+}
+
+.pf-media-empty {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #cdf1ee, #ffe7b8);
+  color: rgba(74, 58, 44, 0.45);
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.pf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.pf-chips li {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #eef6e8;
+  color: #4f7a43;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.pf-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pf-link {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(107, 86, 68, 0.08);
+  color: #5b4a3a;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pf-link:hover {
+  background: rgba(107, 86, 68, 0.16);
+}
+
+.pf-link.primary {
+  background: #e9a55a;
+  color: #fff;
+}
+
+.pf-link.primary:hover {
+  background: #db8f3f;
+}
+
+.pf-panel-head {
+  padding-right: 36px;
+  margin-bottom: 10px;
+}
+
+.pf-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pf-item {
+  padding: 14px 0;
+  border-top: 1px solid rgba(107, 86, 68, 0.12);
+}
+
+.pf-item-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #4a3a2c;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pf-item-title:hover span:first-child {
+  text-decoration: underline;
+  text-decoration-color: #e9a55a;
+  text-underline-offset: 3px;
+}
+
+.pf-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(107, 86, 68, 0.08);
+  font-size: 10.5px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.pf-badge.built {
+  background: #ffe7b8;
+  color: #9a5421;
+  opacity: 1;
+}
+
+.pf-contact {
+  padding-top: 14px;
+  border-top: 1px solid rgba(107, 86, 68, 0.12);
+}
+
+@keyframes pf-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Phones: panels become bottom sheets above the toolbar area. */
+@media (max-width: 640px) {
+  .story-hud { top: 10px; left: 10px; }
+  .story-skip { top: 54px; right: auto; left: 10px; }
+  .story-progress, .story-btn { font-size: 12px; padding: 6px 11px; }
+  .pf-card,
+  .pf-panel {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 72vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-card, .pf-panel, .story-btn, .dlg, .dlg-body { animation: none; transition: none; }
+}

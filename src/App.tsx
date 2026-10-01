@@ -3,7 +3,11 @@ import { Canvas } from '@react-three/fiber'
 import { PerformanceMonitor, Stats } from '@react-three/drei'
 import { NeutralToneMapping, PCFShadowMap } from 'three'
 import { Scene } from './scene/Scene'
+import { setLowPower } from './scene/perf'
 import { Toolbar } from './ui/Toolbar'
+import { StoryHud } from './ui/story/StoryHud'
+import { useQuestWatcher } from './story/useQuestWatcher'
+import { useEndingDirector } from './story/useEndingDirector'
 
 // Retina screens get at most 1.5x; the monitor lowers this further on slow GPUs.
 const MAX_DPR = Math.min(window.devicePixelRatio, 1.5)
@@ -12,6 +16,8 @@ const showStats = new URLSearchParams(window.location.search).has('stats')
 
 export default function App() {
   const [dpr, setDpr] = useState(MAX_DPR)
+  useQuestWatcher()
+  useEndingDirector()
 
   return (
     <>
@@ -25,13 +31,20 @@ export default function App() {
       >
         <PerformanceMonitor
           bounds={() => [45, 58]}
-          onChange={({ factor }) => setDpr(Math.round((MIN_DPR + (MAX_DPR - MIN_DPR) * factor) * 20) / 20)}
-          onFallback={() => setDpr(MIN_DPR)}
+          onChange={({ factor }) => {
+            setDpr(Math.round((MIN_DPR + (MAX_DPR - MIN_DPR) * factor) * 20) / 20)
+            setLowPower(factor < 0.35)
+          }}
+          onFallback={() => {
+            setDpr(MIN_DPR)
+            setLowPower(true)
+          }}
         />
         <Scene />
         {showStats && <Stats />}
       </Canvas>
       <Toolbar />
+      <StoryHud />
     </>
   )
 }
