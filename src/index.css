@@ -12,3 +12,16 @@ body,
   height: 100%;
   overflow: hidden;
 }
+
+/* Touch: no page bounce, no grey tap flash, no long-press callout on the canvas. */
+html,
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}

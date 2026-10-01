@@ -66,12 +66,13 @@ Software rendering gives roughly 10 fps. Compare performance before and after a 
 
 ## Status
 
-- Phases 1–4 are done: portfolio data and UI, ship and quests, landmarks, and the docking and sunset ending.
-- **Phase 5 is next:** mobile and polish.
-  - Tap-to-place on touch.
-  - One finger for tools; two fingers to rotate and zoom.
-  - A bigger toolbar and panels under 640px.
-  - An FPS check before and after story mode.
-  - A README update about story mode.
+- All 5 phases are done: portfolio data and UI, ship and quests, landmarks, the docking and sunset ending, and mobile.
+- Touch input works as follows:
+  - `Interaction.tsx` builds on finger *lift* if the finger moved less than 12px, and never paints on drag.
+  - A second finger cancels the tap and becomes a camera gesture (`touches: ONE none, TWO DOLLY_ROTATE` in `CameraRig`).
+  - The toolbar's **Remove** toggle (`erase` in the island store, read via `isRemoveMode()` in `modifiers.ts`) stands in for Shift. It is shown only on touch screens (`useTouchScreen`).
+- Layout:
+  - Portrait screens step the camera back (`fitDistance`).
+  - Short landscape screens (`max-height: 500px`) put the captain bottom-left and the tools bottom-right.
 - The plan is in `~/.claude/plans/lets-do-something-like-federated-hollerith.md`.
-- After that, the owner will supply real project and contact content for `src/story/projects.ts`.
+- **Next:** the owner will supply real project and contact content for `src/story/projects.ts`.

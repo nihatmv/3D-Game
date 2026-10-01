@@ -6,7 +6,7 @@ import { SEA_Y, surfaceY, tileMin } from '../world/constants'
 import { idx } from '../world/grid'
 import { stackHeight } from '../world/stones'
 import { canApply } from '../world/toolRules'
-import { isShiftHeld } from './modifiers'
+import { isRemoveMode } from './modifiers'
 import { isLandmarkHovered } from './story/landmarkHover'
 import { useThree } from '@react-three/fiber'
 
@@ -77,7 +77,7 @@ export function HoverHighlight() {
       if (canvas.style.cursor !== cursor) canvas.style.cursor = cursor
       return
     }
-    const reverse = isShiftHeld()
+    const reverse = isRemoveMode()
     const ok = canApply(st, st.tool, reverse, hover.x, hover.z)
     const tint = !ok ? COLOR_INVALID : reverse ? COLOR_REMOVE : COLOR_OK
     material.uniforms.uColor.value.lerp(tint, k)

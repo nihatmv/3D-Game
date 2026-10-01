@@ -5,6 +5,7 @@ import { useIslandStore, type TileCoord } from '../store/useIslandStore'
 import { GRID, HALF, SEA_Y, surfaceY } from '../world/constants'
 import { idx, inBounds } from '../world/grid'
 import { stackHeight } from '../world/stones'
+import { isRemoveMode } from './modifiers'
 import { emit, type PuffKind } from './puffs'
 
 const probe = new Vector3()
@@ -81,20 +82,59 @@ function applyTool(t: TileCoord, reverse: boolean, point: Vector3, first: boolea
 }
 
 type Stroke = { visited: Set<number>; reverse: boolean }
+/** A finger that went down on a tile; it builds there only if it lifts without moving. */
+type Tap = { id: number; x: number; y: number; tile: TileCoord; point: Vector3 }
 
-/** Wraps pickable meshes (terrain, ocean) and routes pointer input. */
+/** How far (px) a finger may drift and still count as a tap. */
+const TAP_SLOP = 12
+
+/**
+ * Wraps pickable meshes (terrain, ocean) and routes pointer input.
+ * Mouse/pen: click or drag to paint. Touch: a tap builds on one tile when the
+ * finger lifts, with no drag painting, and any second finger turns the touch into a
+ * camera gesture instead.
+ */
 export function Interaction({ children }: { children: ReactNode }) {
   const setHover = useIslandStore((s) => s.setHover)
   const stroke = useRef<Stroke | null>(null)
+  const tap = useRef<Tap | null>(null)
+  const touches = useRef(new Set<number>())
 
-  // End the stroke wherever the button is released (even off-canvas).
   useEffect(() => {
-    const end = () => (stroke.current = null)
-    window.addEventListener('pointerup', end)
-    window.addEventListener('blur', end)
+    // Capture phase, so the count is current before the canvas handlers run.
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      touches.current.add(e.pointerId)
+      if (touches.current.size > 1) tap.current = null
+    }
+    const move = (e: PointerEvent) => {
+      const t = tap.current
+      if (t && e.pointerId === t.id && Math.hypot(e.clientX - t.x, e.clientY - t.y) > TAP_SLOP) tap.current = null
+    }
+    // End the stroke wherever the button is released (even off-canvas).
+    const up = (e: PointerEvent) => {
+      stroke.current = null
+      touches.current.delete(e.pointerId)
+      const t = tap.current
+      if (t && e.pointerId === t.id && e.type === 'pointerup') applyTool(t.tile, isRemoveMode(false), t.point, true)
+      if (t && e.pointerId === t.id) tap.current = null
+    }
+    const blur = () => {
+      stroke.current = null
+      tap.current = null
+      touches.current.clear()
+    }
+    window.addEventListener('pointerdown', down, true)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    window.addEventListener('blur', blur)
     return () => {
-      window.removeEventListener('pointerup', end)
-      window.removeEventListener('blur', end)
+      window.removeEventListener('pointerdown', down, true)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      window.removeEventListener('blur', blur)
     }
   }, [])
 
@@ -110,21 +150,33 @@ export function Interaction({ children }: { children: ReactNode }) {
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (e.button !== 0) return
-    stroke.current = { visited: new Set(), reverse: e.shiftKey }
     const t = tileFromEvent(e)
+    if (e.pointerType === 'touch') {
+      if (touches.current.size > 1 || !t) return
+      tap.current = { id: e.pointerId, x: e.clientX, y: e.clientY, tile: t, point: e.point.clone() }
+      setHover(t)
+      return
+    }
+    stroke.current = { visited: new Set(), reverse: isRemoveMode(e.shiftKey) }
     setHover(t)
     paint(t, e.point)
   }
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
+    // Fingers only hover while they touch; keep the highlight on the tapped tile.
+    if (e.pointerType === 'touch') return
     const t = tileFromEvent(e)
     setHover(t)
     paint(t, e.point)
   }
 
   return (
-    <group onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerLeave={() => setHover(null)}>
+    <group
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerLeave={(e) => e.pointerType !== 'touch' && setHover(null)}
+    >
       {children}
     </group>
   )

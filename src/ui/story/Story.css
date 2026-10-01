@@ -28,14 +28,18 @@
 
 .story-btn {
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition:
     transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
     background 0.18s;
 }
 
-.story-btn:hover {
-  transform: translateY(-2px);
-  background: #fff;
+@media (hover: hover) {
+  .story-btn:hover {
+    transform: translateY(-2px);
+    background: #fff;
+  }
 }
 
 .story-btn[aria-pressed='true'] {
@@ -151,6 +155,8 @@
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .dlg-btn:hover {
@@ -415,20 +421,48 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
-/* Phones: panels become bottom sheets above the toolbar area. */
+/* Phones: bigger tap targets, panels become bottom sheets. */
 @media (max-width: 640px) {
-  .story-hud { top: 10px; left: 10px; }
-  .story-skip { top: 54px; right: auto; left: 10px; }
-  .story-progress, .story-btn { font-size: 12px; padding: 6px 11px; }
+  .story-hud { top: calc(10px + env(safe-area-inset-top)); left: 10px; }
+  .story-skip { top: calc(54px + env(safe-area-inset-top)); right: auto; left: 10px; }
+  .story-progress, .story-btn { min-height: 36px; box-sizing: border-box; font-size: 12px; padding: 6px 12px; }
   .pf-card,
   .pf-panel {
     top: auto;
     left: 8px;
     right: 8px;
-    bottom: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
     width: auto;
-    max-height: 72vh;
+    max-height: 78vh;
+    max-height: 78dvh;
+    padding: 18px 16px 20px;
+    overscroll-behavior: contain;
+    animation-name: sheet-in;
   }
+  .pf-close { width: 38px; height: 38px; top: 10px; right: 10px; }
+  .pf-link { padding: 9px 14px; }
+  .dlg { gap: 10px; padding: 11px 12px; border-radius: 18px; }
+  .dlg-avatar { width: 34px; height: 34px; font-size: 16px; }
+  .dlg-line { margin: 2px 0 8px; font-size: 13.5px; }
+  .dlg-btn { min-height: 36px; padding: 7px 14px; }
+}
+
+/* Phones (landscape): the captain shares the bottom row with the tools. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .dlg { width: min(420px, 52vw); margin: 0; padding: 10px 12px; }
+  .dlg-avatar { width: 32px; height: 32px; font-size: 15px; }
+  .dlg-line { margin: 2px 0 6px; font-size: 13px; line-height: 1.35; }
+  .dlg-btn { padding: 5px 12px; }
+  .story-hud { top: 8px; }
+  .story-skip { top: 8px; }
+  .pf-card,
+  .pf-panel { top: 52px; bottom: 8px; }
+  .pf-card { max-height: calc(100vh - 60px); }
+}
+
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {

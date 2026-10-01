@@ -39,9 +39,12 @@ type IslandState = {
   locked: Uint8Array
 
   tool: Tool
+  /** Touch "remove" toggle: tools do their Shift action (phones have no Shift key). */
+  erase: boolean
   hover: TileCoord | null
 
   setTool: (tool: Tool) => void
+  setErase: (erase: boolean) => void
   setHover: (hover: TileCoord | null) => void
 
   /** Soil: add one level (or turn ocean into a new beach). */
@@ -116,9 +119,11 @@ export const useIslandStore = create<IslandState>((set, get) => {
     locked: new Uint8Array(TILE_COUNT),
 
     tool: 'soil',
+    erase: false,
     hover: null,
 
     setTool: (tool) => set({ tool }),
+    setErase: (erase) => set({ erase }),
     setHover: (hover) => {
       const cur = get().hover
       if (cur === hover || (cur && hover && cur.x === hover.x && cur.z === hover.z)) return

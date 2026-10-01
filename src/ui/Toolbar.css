@@ -1,7 +1,7 @@
 .toolbar-wrap {
   position: fixed;
   left: 50%;
-  bottom: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -42,6 +42,8 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition:
     background 0.18s,
     transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -52,10 +54,14 @@
 .tool-stone { --tint: #e6e2dc; }
 .tool-water { --tint: #cdf1ee; }
 .tool-seeds { --tint: #dcf1cf; }
+.tool-erase { --tint: #ffd9d2; }
 
-.tool:hover {
-  background: rgba(255, 255, 255, 0.75);
-  transform: translateY(-2px);
+/* Hover lift only where there is a real hover (on phones it would stick after a tap). */
+@media (hover: hover) {
+  .tool:hover {
+    background: rgba(255, 255, 255, 0.75);
+    transform: translateY(-2px);
+  }
 }
 
 .tool:focus-visible {
@@ -173,8 +179,35 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 420px) {
-  .tool { width: 62px; }
+/* Phones (portrait): compact bar that still leaves big tap targets. */
+@media (max-width: 640px) {
+  .toolbar-wrap { bottom: calc(10px + env(safe-area-inset-bottom)); gap: 6px; }
+  .toolbar { gap: 4px; padding: 6px; border-radius: 22px; }
+  .tool { width: 64px; padding: 9px 0 8px; }
+  .toolbar-hint { font-size: 12px; padding: 4px 12px; }
+}
+
+@media (max-width: 380px) {
+  .tool { width: 58px; font-size: 11.5px; }
+}
+
+/* Phones (landscape): little height, so the captain sits left and the tools right. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .toolbar-wrap {
+    left: calc(10px + env(safe-area-inset-left));
+    right: calc(10px + env(safe-area-inset-right));
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    transform: none;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .toolbar-hint,
+  .toolbar-sub { display: none; }
+  .toolbar { margin-left: auto; }
+  .tool { width: 58px; padding: 7px 0 5px; font-size: 11px; }
+  .tool-icon,
+  .tool-icon svg { width: 24px; height: 24px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
