@@ -1,8 +1,10 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useIslandStore } from '../../store/useIslandStore'
 import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { QUESTS } from '../../story/quests'
 import { ToolIcon } from '../ToolIcons'
+import { PirateAvatar } from './PirateAvatar'
+import { bindShipBubble } from './shipBubble'
 
 const INTRO = [
   'Ahoy there! Strange island... nobody’s charted this one.',
@@ -14,8 +16,27 @@ const DOCKED = 'We made it, just in time for sunset. Thank you, builder! Here’
 
 const capitalize = (s: string) => s[0].toUpperCase() + s.slice(1)
 
-/** The captain's speech box above the toolbar: intro, current task, and praise. */
-export function Dialogue() {
+/** Screens with room beside the ship for the speech bubble; smaller ones keep it above the toolbar. */
+const BESIDE_SHIP = '(min-width: 900px) and (min-height: 501px)'
+
+function useBesideShip() {
+  const [beside, setBeside] = useState(() => window.matchMedia(BESIDE_SHIP).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(BESIDE_SHIP)
+    const on = () => setBeside(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return beside
+}
+
+/**
+ * The captain's speech: intro, current task, and praise.
+ * `ship` floats beside the ship (wide screens); `toolbar` sits above the tools (phones).
+ * Both are mounted and each renders only where it belongs.
+ */
+export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
+  const beside = useBesideShip()
   const phase = useStoryStore((s) => s.phase)
   const shipState = useStoryStore((s) => s.shipState)
   const questIndex = useStoryStore((s) => s.questIndex)
@@ -92,11 +113,12 @@ export function Dialogue() {
   } else {
     return null
   }
+  if (beside !== (placement === 'ship')) return null
 
-  return (
+  const box = (
     <div className="dlg" role="status" aria-live="polite">
       <div className="dlg-avatar" aria-hidden>
-        ⚓
+        <PirateAvatar />
       </div>
       <div className="dlg-body" key={key}>
         <div className="dlg-name">
@@ -106,5 +128,12 @@ export function Dialogue() {
         {actions && <div className="dlg-actions">{actions}</div>}
       </div>
     </div>
+  )
+  return placement === 'ship' ? (
+    <div className="dlg-ship" ref={bindShipBubble}>
+      {box}
+    </div>
+  ) : (
+    box
   )
 }

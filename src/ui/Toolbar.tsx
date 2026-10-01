@@ -54,7 +54,7 @@ export function Toolbar() {
 
   return (
     <div className={`toolbar-wrap${touch ? ' touch' : ''}`}>
-      <Dialogue />
+      <Dialogue placement="toolbar" />
       <div className={`toolbar-hint${removing ? ' remove' : ''}`} key={`${tool}-${removing}`}>
         {removing ? active.removeHint : touch ? active.tapHint : active.hint}
         {!removing && <span className="toolbar-hint-sub">{touch ? ' · two fingers to turn' : ' · hold Shift to undo'}</span>}

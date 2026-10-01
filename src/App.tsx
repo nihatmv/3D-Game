@@ -6,6 +6,7 @@ import { Scene } from './scene/Scene'
 import { setLowPower } from './scene/perf'
 import { Toolbar } from './ui/Toolbar'
 import { StoryHud } from './ui/story/StoryHud'
+import { Dialogue } from './ui/story/Dialogue'
 import { useQuestWatcher } from './story/useQuestWatcher'
 import { useEndingDirector } from './story/useEndingDirector'
 
@@ -43,6 +44,7 @@ export default function App() {
         <Scene />
         {showStats && <Stats />}
       </Canvas>
+      <Dialogue placement="ship" />
       <Toolbar />
       <StoryHud />
     </>

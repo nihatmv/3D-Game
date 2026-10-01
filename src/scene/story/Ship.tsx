@@ -8,9 +8,14 @@ import { ARRIVE_PATH, ARRIVE_SECONDS, DOCK_SECONDS, dockPath } from '../../story
 import { wake } from '../perf'
 import { PIER_LENGTH } from './landmarkGeometry'
 import { makeShipGeometry } from './shipGeometry'
+import { setShipScreen } from '../../ui/story/shipBubble'
 
 const point = new Vector3()
 const tangent = new Vector3()
+const screen = new Vector3()
+
+/** Height above the waterline the speech bubble points at (mid-sails). */
+const BUBBLE_ANCHOR_Y = 1.1
 
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)
 
@@ -68,6 +73,10 @@ export function Ship() {
 
     g.position.set(point.x, 0.12 + swell(point.x, point.z, t), point.z)
     g.rotation.set(Math.sin(t * 1.1) * 0.035, Math.atan2(-tangent.z, tangent.x), Math.sin(t * 0.8 + 1) * 0.025, 'YXZ')
+
+    // Tell the captain's speech bubble where the ship is on screen.
+    screen.set(point.x, BUBBLE_ANCHOR_Y, point.z).project(state.camera)
+    if (screen.z < 1) setShipScreen(((screen.x + 1) / 2) * state.size.width, ((1 - screen.y) / 2) * state.size.height)
   })
 
   return (

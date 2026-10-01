@@ -26,6 +26,7 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
    - Never add per-frame work that runs while idle.
 3. **Content lives in data files only.** Changing projects or quests should not require game code changes.
 4. **Work in phases and stop after each one** so the owner can test it. Don't commit unless asked.
+5. **Keep this file current without being asked.** Before handing back any task that changed code, re-read CLAUDE.md and update it if the work made something here wrong or left out something a future session would need: a new file or module, a moved responsibility, a new gotcha, or a status change. Edit only when needed, keep edits short and in the existing style, and don't log routine fixes. In your final message, say in one line whether you updated CLAUDE.md and what changed.
 
 ## Layout
 
@@ -47,7 +48,10 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
   - `Lighting` owns the sky, fog and lights, and eases the sunset (`sunset.ts`).
 - `src/scene/story/`: Ship, Landmarks (pop animation, click to open the card, lighthouse beam, pond ripples, dock flag), QuestGhost (the ring over the task area), and the landmark and ship geometry.
   - `shipGeometry.ts` is a pirate ship (dark sails, Jolly Roger, cannons) merged into one mesh. Its sails are swung off square (`BRACE`) so they face the camera rather than showing their edge.
-- `src/ui/`: the Toolbar (it renders the captain's `Dialogue` and pulses the quest tool). `src/ui/story/` holds StoryHud, Dialogue, ProjectCard, PortfolioPanel, ProjectBody and `Story.css`.
+- `src/ui/`: the Toolbar (it pulses the quest tool). `src/ui/story/` holds StoryHud, Dialogue, ProjectCard, PortfolioPanel, ProjectBody, PirateAvatar and `Story.css`.
+  - `Dialogue` is mounted twice: `placement="ship"` in `App` and `placement="toolbar"` in the Toolbar. Each renders only on its own screens (`BESIDE_SHIP` media query: at least 900px wide and over 500px tall). The two copies keep separate intro state.
+  - On wide screens the bubble floats beside the ship. `Ship.tsx` projects the ship to screen coordinates every frame and calls `setShipScreen()` in `shipBubble.ts`. That module places the bubble left of the ship, narrowed to fit, or below the ship near the left edge, and restyles it only when its rounded position changes.
+  - `PirateAvatar` is the captain's portrait, drawn in inline SVG.
 
 ## Gotchas
 
@@ -75,5 +79,6 @@ Software rendering gives roughly 10 fps. Compare performance before and after a 
 - Layout:
   - Portrait screens step the camera back (`fitDistance`).
   - Short landscape screens (`max-height: 500px`) put the captain bottom-left and the tools bottom-right.
+  - Wide screens show the captain's bubble beside the ship rather than above the toolbar.
 - The plan is in `~/.claude/plans/lets-do-something-like-federated-hollerith.md`.
 - **Next:** the owner will supply real project and contact content for `src/story/projects.ts`.
