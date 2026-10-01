@@ -2,11 +2,13 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { useIslandStore, type TileCoord } from '../store/useIslandStore'
-import { GRID, HALF, SEA_Y, surfaceY } from '../world/constants'
+import { isTourActive, selectActiveQuest, useStoryStore } from '../store/useStoryStore'
+import { runQuestBuild } from '../story/questBuild'
+import { onTarget } from '../story/quests'
+import { GRID, HALF } from '../world/constants'
 import { idx, inBounds } from '../world/grid'
-import { stackHeight } from '../world/stones'
+import { applyTool } from './applyTool'
 import { isRemoveMode } from './modifiers'
-import { emit, type PuffKind } from './puffs'
 
 const probe = new Vector3()
 
@@ -28,59 +30,6 @@ function tileFromEvent(e: ThreeEvent<PointerEvent>): TileCoord | null {
   return inBounds(x, z) ? { x, z } : null
 }
 
-/** World y of the visible surface on a tile right now (water, stack, ground or sea). */
-function surfaceAt(i: number): number {
-  const { height, type, pondLevel, stones } = useIslandStore.getState()
-  if (!Number.isNaN(pondLevel[i])) return pondLevel[i]
-  if (height[i] === 0) return SEA_Y
-  return surfaceY(height[i], type[i]) + stackHeight(stones[i])
-}
-
-/**
- * Apply the active tool (or its reverse) to one tile and play a puff for it.
- * `point` is the world hit point; `first` is true for the first tile of a stroke.
- */
-function applyTool(t: TileCoord, reverse: boolean, point: Vector3, first: boolean): boolean {
-  const s = useIslandStore.getState()
-  const i = idx(t.x, t.z)
-  const cx = t.x - HALF + 0.5
-  const cz = t.z - HALF + 0.5
-  const puff = (kind: PuffKind, count?: number) => emit(kind, cx, surfaceAt(i) + 0.05, cz, count)
-
-  switch (s.tool) {
-    case 'soil': {
-      const ok = reverse ? s.lower(t.x, t.z) : s.raise(t.x, t.z)
-      if (ok) puff(s.height[i] === 0 ? 'splash' : 'dirt')
-      return ok
-    }
-    case 'water': {
-      const ok = reverse ? s.fill(t.x, t.z) : s.dig(t.x, t.z)
-      if (ok) puff(reverse ? 'dirt' : 'splash')
-      return ok
-    }
-    case 'stone': {
-      // Reverse: puff where the removed piece was, before it disappears.
-      const top = surfaceAt(i)
-      const ok = reverse ? s.removeStone(t.x, t.z) : s.addStone(t.x, t.z)
-      if (ok) emit('dust', cx, reverse ? top : surfaceAt(i) - 0.1, cz)
-      return ok
-    }
-    case 'seeds': {
-      if (reverse) {
-        const ok = s.removePlants(t.x, t.z)
-        if (ok) puff('leaves', 10)
-        return ok
-      }
-      // A click scatters a handful; dragging sows a lighter trail.
-      const count = first ? 3 + Math.floor(Math.random() * 3) : 2
-      const grown = s.scatterSeeds(point.x, point.z, count, first ? 1.2 : 0.6)
-      if (grown > 0) emit('leaves', point.x, point.y + 0.05, point.z, 3 + grown * 2)
-      if (grown < count) emit('fizzle', point.x, point.y + 0.05, point.z)
-      return grown > 0
-    }
-  }
-}
-
 type Stroke = { visited: Set<number>; reverse: boolean }
 /** A finger that went down on a tile; it builds there only if it lifts without moving. */
 type Tap = { id: number; x: number; y: number; tile: TileCoord; point: Vector3 }
@@ -92,7 +41,7 @@ const TAP_SLOP = 12
  * Wraps pickable meshes (terrain, ocean) and routes pointer input.
  * Mouse/pen: click or drag to paint. Touch: a tap builds on one tile when the
  * finger lifts, with no drag painting, and any second finger turns the touch into a
- * camera gesture instead.
+ * camera gesture instead. While the tour runs, tools are off (see isTourActive).
  */
 export function Interaction({ children }: { children: ReactNode }) {
   const setHover = useIslandStore((s) => s.setHover)
@@ -116,7 +65,7 @@ export function Interaction({ children }: { children: ReactNode }) {
       stroke.current = null
       touches.current.delete(e.pointerId)
       const t = tap.current
-      if (t && e.pointerId === t.id && e.type === 'pointerup') applyTool(t.tile, isRemoveMode(false), t.point, true)
+      if (t && e.pointerId === t.id && e.type === 'pointerup') applyTool(useIslandStore.getState().tool, t.tile, isRemoveMode(false), t.point, true)
       if (t && e.pointerId === t.id) tap.current = null
     }
     const blur = () => {
@@ -144,13 +93,19 @@ export function Interaction({ children }: { children: ReactNode }) {
     const i = idx(t.x, t.z)
     if (s.visited.has(i)) return
     s.visited.add(i)
-    applyTool(t, s.reverse, point, s.visited.size === 1)
+    applyTool(useIslandStore.getState().tool, t, s.reverse, point, s.visited.size === 1)
   }
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    if (e.button !== 0) return
+    if (e.button !== 0 || useStoryStore.getState().focus) return
     const t = tileFromEvent(e)
+    // During the tour only the glowing quest target builds (also when its own stones hide the ring).
+    if (isTourActive()) {
+      const q = selectActiveQuest(useStoryStore.getState())
+      if (q && t && onTarget(q.area, t.x, t.z)) runQuestBuild(q)
+      return
+    }
     if (e.pointerType === 'touch') {
       if (touches.current.size > 1 || !t) return
       tap.current = { id: e.pointerId, x: e.clientX, y: e.clientY, tile: t, point: e.point.clone() }
@@ -166,7 +121,7 @@ export function Interaction({ children }: { children: ReactNode }) {
     e.stopPropagation()
     // Fingers only hover while they touch; keep the highlight on the tapped tile.
     if (e.pointerType === 'touch') return
-    const t = tileFromEvent(e)
+    const t = isTourActive() || useStoryStore.getState().focus ? null : tileFromEvent(e)
     setHover(t)
     paint(t, e.point)
   }

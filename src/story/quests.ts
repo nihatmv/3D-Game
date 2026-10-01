@@ -6,6 +6,7 @@ import type { Tool } from '../store/useIslandStore'
 /**
  * The captain's tasks, in order. Each one is pure data plus a condition that
  * reads the island state, so adding or reordering quests never touches game code.
+ * Tour stops are one click each (`clicks`); `auto` quests are built in the ending.
  */
 
 export type LandmarkKind = 'lighthouseBase' | 'lighthouseTop' | 'pondRipples' | 'pier' | 'bigTree'
@@ -31,7 +32,14 @@ export type Quest = {
   tool: Tool
   area: Area
   condition: (s: IslandSnapshot, area: Area) => boolean
+  /**
+   * What one click on the glowing target does: the quest's tool is applied
+   * on these tiles (offsets from the area centre), one after another.
+   */
+  clicks: ReadonlyArray<readonly [number, number]>
   landmark: LandmarkKind
+  /** Not a tour stop: built automatically when the ship comes in to dock. */
+  auto?: boolean
   /** Build on the same tile as an earlier quest's landmark. */
   anchorOf?: string
 }
@@ -48,6 +56,11 @@ export function tilesInArea(a: Area): number[] {
     }
   }
   return out
+}
+
+/** The tile is on the area's glowing target (a little wider than its circle, for easy clicking). */
+export function onTarget(a: Area, x: number, z: number): boolean {
+  return (x - a.x) ** 2 + (z - a.z) ** 2 <= (a.r + 0.5) ** 2
 }
 
 export function countInArea(a: Area, pred: (i: number) => boolean): number {
@@ -78,32 +91,36 @@ export const QUESTS: Quest[] = [
   {
     id: 'lighthouse-base',
     projectId: 'breathing-monitor',
-    dialogue: 'Rocky waters out here. Lay a few stones on that high ground, and we can build a lighthouse.',
+    dialogue: 'Rocky waters out here. Let’s lay a stone base for a lighthouse.',
     doneLine: 'A solid foundation! Every good thing starts with the hardware.',
     tool: 'stone',
     area: { x: 13, z: 13, r: 1.5 },
     condition: (s, a) => sumInArea(a, (i) => s.stones[i]) >= 3,
+    clicks: [[0, 0], [1, 0], [0, 1]],
     landmark: 'lighthouseBase',
   },
   {
     id: 'lighthouse-top',
     projectId: 'gitpulse',
-    dialogue: 'Now stack a tower all the way up beside the base. We’ll carry the stones up top!',
+    dialogue: 'Now raise the tower, and we’ll light the lamp!',
     doneLine: 'There it is, a beam across the water. Signals sent and received!',
     tool: 'stone',
     area: { x: 13, z: 13, r: 1.5 },
     condition: (s, a) => countInArea(a, (i) => s.stones[i] >= MAX_STONE) >= 1,
+    // The base's tile is locked, so the tower goes up next to it.
+    clicks: Array.from({ length: MAX_STONE }, () => [1, 0] as const),
     landmark: 'lighthouseTop',
     anchorOf: 'lighthouse-base',
   },
   {
     id: 'pond',
     projectId: 'cue',
-    dialogue: 'Our water barrels are dry. Could you dig a pond for us?',
+    dialogue: 'Our water barrels are dry. A pond, please!',
     doneLine: 'Listen to those ripples. Waves turn into a signal.',
     tool: 'water',
     area: { x: 17, z: 15, r: 1.5 },
     condition: (s, a) => countInArea(a, (i) => s.type[i] === TileType.Water) >= 2,
+    clicks: [[0, 0], [1, 0]],
     landmark: 'pondRipples',
   },
   {
@@ -114,16 +131,22 @@ export const QUESTS: Quest[] = [
     tool: 'soil',
     area: { x: 6, z: 16, r: 1.5 },
     condition: (s, a) => countInArea(a, (i) => wasOcean[i] === 1 && s.height[i] > 0) >= 3,
+    clicks: [],
     landmark: 'pier',
+    auto: true,
   },
   {
     id: 'tree',
     projectId: 'sabah-hub',
-    dialogue: 'A bit of shade would be lovely. Plant some seeds over there.',
+    dialogue: 'Last one: a bit of shade would be lovely.',
     doneLine: 'From a tiny seed to a full tree. That’s real growth.',
     tool: 'seeds',
     area: { x: 14, z: 18, r: 1.5 },
     condition: (s, a) => plantsInArea(s, a, () => true) >= 3 || plantsInArea(s, a, isTree) >= 1,
+    clicks: [[0, 0], [0, 0], [0, 0]],
     landmark: 'bigTree',
   },
 ]
+
+/** The tour stops, in order: every quest the visitor builds with one click. */
+export const TOUR: Quest[] = QUESTS.filter((q) => !q.auto)

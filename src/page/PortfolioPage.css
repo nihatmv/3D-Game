@@ -1,0 +1,196 @@
+/* The plain portfolio page: same warm paper look as the island's cards, no WebGL. */
+
+.pp {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: linear-gradient(180deg, #fbe3c8 0, #fff6ea 360px, #fffaf3 100%) local;
+  color: #5b4a3a;
+}
+
+.pp-inner {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: calc(40px + env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom));
+}
+
+.pp-hero {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.pp-photo {
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 4px #fff, 0 8px 24px rgba(120, 80, 40, 0.2);
+}
+
+.pp-hero h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 44px);
+  line-height: 1.1;
+  color: #3d2f23;
+}
+
+.pp-role {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #2f8f98;
+}
+
+.pp-pitch {
+  margin: 10px 0 14px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.pp-island {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 0 0 40px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: #2f8f98;
+  box-shadow: 0 10px 26px rgba(47, 143, 152, 0.28);
+  color: #fff;
+  font-size: 22px;
+  text-decoration: none;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pp-island > span:nth-child(2) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
+}
+
+.pp-island small {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.pp-island:hover {
+  transform: translateY(-2px);
+}
+
+.pp-island:focus-visible {
+  outline: 3px solid #e9a55a;
+  outline-offset: 3px;
+}
+
+.pp h2 {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #c0803e;
+}
+
+.pp section {
+  margin-bottom: 40px;
+}
+
+.pp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 16px;
+}
+
+.pp-card {
+  padding: 18px 18px 20px;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(120, 80, 40, 0.1);
+}
+
+.pp-card h3 {
+  margin: 2px 0 4px;
+  font-size: 21px;
+  line-height: 1.2;
+  color: #4a3a2c;
+}
+
+.pp-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pp-timeline li {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(107, 86, 68, 0.12);
+}
+
+.pp-when {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a7360;
+}
+
+.pp-timeline h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #4a3a2c;
+}
+
+.pp-timeline h3 span {
+  font-weight: 600;
+  color: #8a7360;
+}
+
+.pp-timeline p,
+.pp-contact p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.pp-contact {
+  padding: 22px;
+  border-radius: 22px;
+  background: #fff1d6;
+}
+
+.pp-contact p {
+  margin-bottom: 14px;
+}
+
+@media (max-width: 640px) {
+  .pp-inner { padding-top: calc(24px + env(safe-area-inset-top)); }
+  .pp-hero { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .pp-photo { width: 92px; height: 92px; }
+  .pp-pitch { font-size: 15.5px; }
+  .pp-timeline li { grid-template-columns: 1fr; gap: 4px; }
+  .pf-link { padding: 9px 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-island { transition: none; }
+}
+
+.pp-greeting {
+  display: inline-block;
+  margin: 0 0 18px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 700;
+  color: #2f8f98;
+}

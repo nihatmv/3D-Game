@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useIslandStore, type Tool } from '../store/useIslandStore'
-import { selectActiveQuest, selectToolLock, useStoryStore } from '../store/useStoryStore'
+import { isTourActive, selectActiveQuest, selectToolLock, useStoryStore } from '../store/useStoryStore'
 import { useToolHotkeys } from '../hooks/useToolHotkeys'
 import { useTouchScreen } from '../hooks/useTouchScreen'
 import { ToolIcon } from './ToolIcons'
@@ -53,9 +53,19 @@ export function Toolbar() {
   const questTool = useStoryStore((s) => selectActiveQuest(s)?.tool)
   // During the quests only the task's tool works; the rest unlock for free play after.
   const lock = useStoryStore(selectToolLock)
+  // The tour builds with one click on the target, so the tools wait for free play.
+  const touring = useStoryStore((s) => isTourActive(s))
+
+  if (touring) {
+    return (
+      <div className="toolbar-wrap">
+        <Dialogue placement="toolbar" />
+      </div>
+    )
+  }
 
   return (
-    <div className={`toolbar-wrap${touch ? ' touch' : ''}`}>
+    <div className={`toolbar-wrap free${touch ? ' touch' : ''}`}>
       <Dialogue placement="toolbar" />
       <div className={`toolbar-hint${removing ? ' remove' : ''}`} key={`${tool}-${removing}`}>
         {removing ? active.removeHint : touch ? active.tapHint : active.hint}
