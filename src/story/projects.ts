@@ -5,6 +5,25 @@
  * TODO: replace the placeholder text, links and media with the real content.
  */
 
+/** Site-wide settings. */
+export const CONFIG = {
+  /** Public GitHub username: the lighthouse shows its latest pushed commit (GitPulse demo). */
+  githubUser: 'TODO-github-username',
+}
+
+/**
+ * A small live demo on the project's landmark (and in its card):
+ * - `commit`: the lighthouse shows your latest public commit, with `fallback` when GitHub can't be reached.
+ * - `breathing`: the lighthouse base glows at the breathing rhythm; the card draws `samples` (JSON in /public).
+ * - `song`: clicking the pond plays `audio` (or a built-in jingle when omitted), then shows "Recognized: <song>".
+ * - `milestone`: the tree grows from a sapling; the card shows `from → to`.
+ */
+export type Demo =
+  | { kind: 'commit'; fallback: { repo: string; message: string } }
+  | { kind: 'breathing'; samples: string }
+  | { kind: 'song'; song: string; audio?: string }
+  | { kind: 'milestone'; from: string; to: string }
+
 export type Project = {
   id: string
   title: string
@@ -23,6 +42,7 @@ export type Project = {
   media?: string
   /** Short tag such as a year or role, shown as a badge. */
   tag?: string
+  demo?: Demo
 }
 
 export type Contact = {
@@ -52,6 +72,7 @@ export const PROJECTS: Project[] = [
     stack: ['C', 'Embedded', 'Sensors'],
     links: { github: 'https://github.com/TODO' },
     tag: 'Hardware',
+    demo: { kind: 'breathing', samples: '/data/breathing.json' },
   },
   {
     id: 'gitpulse',
@@ -62,6 +83,7 @@ export const PROJECTS: Project[] = [
     stack: ['TypeScript', 'Node', 'GitHub API'],
     links: { github: 'https://github.com/TODO', live: 'https://TODO' },
     tag: 'App',
+    demo: { kind: 'commit', fallback: { repo: 'TODO/gitpulse', message: 'TODO: a recent commit message' } },
   },
   {
     id: 'cue',
@@ -72,6 +94,8 @@ export const PROJECTS: Project[] = [
     stack: ['Python', 'DSP'],
     links: { github: 'https://github.com/TODO' },
     tag: 'Audio',
+    // Add a short clip (e.g. '/audio/cue-sample.mp3') to play instead of the built-in jingle.
+    demo: { kind: 'song', song: 'TODO Song Title — Artist' },
   },
   {
     id: 'remote-job-globe',
@@ -87,11 +111,12 @@ export const PROJECTS: Project[] = [
     id: 'sabah-hub',
     title: 'SABAH.HUB',
     pitch: 'TODO: Grew from intern to full-time engineer.',
-    result: 'TODO: Intern → Full-time in 6 months',
+    result: 'TODO: Shipped 12 features to production',
     details: 'TODO: Team, scope and what you shipped.',
     stack: ['TODO'],
     links: {},
     tag: 'Work',
+    demo: { kind: 'milestone', from: 'Intern', to: 'Full-time' },
   },
 ]
 

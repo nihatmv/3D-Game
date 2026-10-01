@@ -3,6 +3,7 @@ import { CONTACT, projectById } from '../../story/projects'
 import { QUESTS } from '../../story/quests'
 import { PirateAvatar } from './PirateAvatar'
 import { CvLink, ProjectLinks, ProjectMedia, ProjectResult, StackChips } from './ProjectBody'
+import { ProjectDemo } from './ProjectDemo'
 
 /**
  * The card for one project (or the contact card), in the middle of the screen
@@ -58,6 +59,7 @@ export function ProjectCard() {
       <h2>{project.title}</h2>
       <p className="pf-pitch">{project.pitch}</p>
       <ProjectResult project={project} />
+      <ProjectDemo demo={project.demo} />
       <StackChips stack={project.stack} />
       <ProjectLinks project={project} />
       <div className="pf-card-foot">

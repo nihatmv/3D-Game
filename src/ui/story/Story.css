@@ -439,6 +439,210 @@
   box-shadow: 0 0 0 3px #fff, 0 4px 14px rgba(120, 80, 40, 0.2);
 }
 
+/* ---------- Landmark mini demos (card blocks and in-world labels) ---------- */
+
+.pf-demo {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f4efe6;
+}
+
+.pf-demo-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a7360;
+}
+
+.lm-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b9a896;
+}
+
+.lm-dot.live {
+  background: #3cbf7a;
+  animation: live-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes live-dot {
+  50% { opacity: 0.35; }
+}
+
+.pf-commit {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.pf-commit-repo {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2f8f98;
+}
+
+.pf-commit-msg {
+  display: block;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #4a3a2c;
+  overflow-wrap: anywhere;
+}
+
+.pf-commit:hover .pf-commit-msg {
+  text-decoration: underline;
+  text-decoration-color: #e9a55a;
+}
+
+.pf-wave {
+  overflow: hidden;
+  height: 44px;
+}
+
+.pf-wave svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pf-wave polyline {
+  fill: none;
+  stroke: #2f8f98;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Two copies of the wave side by side; sliding by one copy loops seamlessly. */
+.pf-wave-track {
+  animation: wave-scroll 12s linear infinite;
+}
+
+@keyframes wave-scroll {
+  to { transform: translateX(-300px); }
+}
+
+.pf-song {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.pf-play {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #2f8f98;
+  color: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pf-play:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.pf-play:focus-visible {
+  outline: 2px solid #e9a55a;
+  outline-offset: 2px;
+}
+
+.pf-song-out {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b5644;
+}
+
+.pf-milestone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #6b5644;
+}
+
+.pf-milestone .to {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #d7f2dd;
+  color: #2c7a45;
+}
+
+.pf-milestone-arrow {
+  display: inline-block;
+  color: #c0803e;
+  animation: nudge 1.4s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  50% { transform: translateX(4px); }
+}
+
+/* In-world labels (drei Html): no pointer events, so clicks reach the landmark. */
+.lm-label-wrap {
+  pointer-events: none;
+}
+
+.lm-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 220px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(255, 250, 242, 0.94);
+  box-shadow: 0 6px 18px rgba(60, 40, 20, 0.2);
+  white-space: nowrap;
+  animation: dlg-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lm-label-kicker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a7360;
+}
+
+.lm-label-text {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4a3a2c;
+  text-overflow: ellipsis;
+}
+
+.lm-bubble.found {
+  background: #fff6dc;
+  animation: bubble-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes bubble-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 /* No landmark beside the contact card: it sits in the very middle. */
 .pf-contact-card {
   left: 0;
@@ -693,5 +897,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-card, .pf-panel, .story-btn, .dlg, .dlg-body, .hero { animation: none; transition: none; }
+  .pf-card, .pf-panel, .story-btn, .dlg, .dlg-body, .hero,
+  .lm-label, .lm-dot.live, .pf-wave-track, .pf-milestone-arrow { animation: none; transition: none; }
 }
