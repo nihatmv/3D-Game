@@ -21,6 +21,8 @@ type StoryState = {
   lastDone: string | null
   /** Card currently shown, or null. */
   openCard: CardId | null
+  /** Landmark the camera flies to while its card is open (CameraRig), or null for the home view. */
+  focus: Placement | null
   /** The plain list view of the whole portfolio. */
   portfolioOpen: boolean
   shipState: ShipState
@@ -37,7 +39,9 @@ type StoryState = {
   skipStep: () => void
   /** Build everything, go to the ending and show the full portfolio. */
   skipAll: () => void
-  openProject: (id: CardId) => void
+  /** Open a card; with `at`, the camera flies to that landmark too. */
+  openProject: (id: CardId, at?: Placement) => void
+  /** Close the card and fly home. In the tour this is "Continue": useTourDirector then shows the next task. */
   closeCard: () => void
   setPortfolioOpen: (open: boolean) => void
   setShipState: (s: ShipState) => void
@@ -55,6 +59,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   placed: {},
   lastDone: null,
   openCard: null,
+  focus: null,
   portfolioOpen: false,
   shipState: 'arriving',
   sunset: 0,
@@ -79,7 +84,8 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       openCard: q.projectId,
       phase: next >= TOUR.length ? 'ending' : 'questing',
     })
-    set({ placed: { ...get().placed, [id]: placeLandmark(q, get().placed) } })
+    const at = placeLandmark(q, get().placed)
+    set({ placed: { ...get().placed, [id]: at }, focus: at })
   },
 
   clearLastDone: () => set({ lastDone: null }),
@@ -97,6 +103,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       phase: 'ending',
       lastDone: null,
       openCard: null,
+      focus: null,
       portfolioOpen: true,
     })
     // Place every landmark still missing, in order (the lighthouse top needs its base).
@@ -105,8 +112,8 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ placed })
   },
 
-  openProject: (id) => set({ openCard: id }),
-  closeCard: () => set({ openCard: null }),
+  openProject: (id, at) => set({ openCard: id, focus: at ?? null }),
+  closeCard: () => set({ openCard: null, focus: null }),
   setPortfolioOpen: (portfolioOpen) => set({ portfolioOpen }),
   setShipState: (shipState) => set({ shipState }),
   startDocking: () => {
@@ -127,7 +134,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   finishStory: () => {
     // Skippers already have the full list open, which includes the contact info.
     const { portfolioOpen, openCard } = get()
-    set({ phase: 'done', openCard: portfolioOpen ? openCard : 'contact' })
+    set({ phase: 'done', openCard: portfolioOpen ? openCard : 'contact', focus: null })
   },
 }))
 
@@ -154,9 +161,10 @@ export function selectToolLock(s: Pick<StoryState, 'phase' | 'questIndex'>) {
 }
 
 /**
- * The guided tour is running (intro or tour stops): the camera is locked, the
- * toolbar is hidden and only the glowing target builds. Free play comes after.
+ * The guided tour is running (intro, tour stops, and the last stop's card): the
+ * camera is locked, the toolbar is hidden and only the glowing target builds.
+ * Free play comes after.
  */
-export function isTourActive(s: Pick<StoryState, 'phase'> = useStoryStore.getState()) {
-  return s.phase === 'intro' || s.phase === 'questing'
+export function isTourActive(s: Pick<StoryState, 'phase' | 'lastDone'> = useStoryStore.getState()) {
+  return s.phase === 'intro' || s.phase === 'questing' || (s.phase === 'ending' && s.lastDone !== null)
 }

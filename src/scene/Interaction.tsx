@@ -98,7 +98,7 @@ export function Interaction({ children }: { children: ReactNode }) {
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    if (e.button !== 0) return
+    if (e.button !== 0 || useStoryStore.getState().focus) return
     const t = tileFromEvent(e)
     // During the tour only the glowing quest target builds (also when its own stones hide the ring).
     if (isTourActive()) {
@@ -121,7 +121,7 @@ export function Interaction({ children }: { children: ReactNode }) {
     e.stopPropagation()
     // Fingers only hover while they touch; keep the highlight on the tapped tile.
     if (e.pointerType === 'touch') return
-    const t = isTourActive() ? null : tileFromEvent(e)
+    const t = isTourActive() || useStoryStore.getState().focus ? null : tileFromEvent(e)
     setHover(t)
     paint(t, e.point)
   }

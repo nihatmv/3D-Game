@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
-import { QUESTS, TOUR } from '../../story/quests'
+import { TOUR } from '../../story/quests'
 import { useTouchScreen } from '../../hooks/useTouchScreen'
 import { PirateAvatar } from './PirateAvatar'
 import { bindShipBubble } from './shipBubble'
@@ -38,6 +38,7 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   const lastDone = useStoryStore((s) => s.lastDone)
   const quest = useStoryStore(selectActiveQuest)
   const building = useStoryStore((s) => s.building)
+  const cardOpen = useStoryStore((s) => s.openCard !== null)
   const { startQuests, skipStep, openProject, setPortfolioOpen } = useStoryStore.getState()
   const touch = useTouchScreen()
   const [dismissed, setDismissed] = useState(false)
@@ -47,7 +48,10 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   let actions: ReactNode
   let step: string | null = null
 
-  if (phase === 'intro') {
+  // A card is the focus: the tour's cards carry the captain's line themselves.
+  if (cardOpen) {
+    return null
+  } else if (phase === 'intro') {
     // Wait until the ship is anchored before the captain speaks.
     if (shipState === 'arriving') return null
     line = INTRO
@@ -58,10 +62,8 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
       </button>
     )
   } else if (lastDone) {
-    const done = QUESTS.find((q) => q.id === lastDone)!
-    line = done.doneLine
-    key = `done-${lastDone}`
-    actions = null
+    // Flying home after Continue: the next task appears in a moment.
+    return null
   } else if (quest) {
     line = quest.dialogue
     key = `quest-${quest.id}`

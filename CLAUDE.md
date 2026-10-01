@@ -37,22 +37,25 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
   - `phase` moves through `intro → questing → ending → done`. `isTourActive()` is true during intro and questing: the camera is locked, the toolbar is hidden, and `Interaction` builds only via the quest target.
   - `questIndex` indexes `TOUR` (the non-`auto` quests), not `QUESTS`.
   - `shipState` moves through `arriving → waiting → docking → docked`.
-  - It also holds `questIndex`, `built`, `placed`, `lastDone`, `openCard`, `portfolioOpen` and `sunset`.
+  - It also holds `questIndex`, `built`, `placed`, `lastDone`, `openCard`, `focus`, `portfolioOpen` and `sunset`.
+  - `focus` is the landmark the camera flies to while its card is open. `openProject(id, at)` sets it, and `closeCard()` clears it and flies home. In the tour, `closeCard` is the card's Continue button: `useTourDirector` clears `lastDone` once the camera is home, and the next task appears.
 - `src/story/`: the story's data and logic.
   - `projects.ts`: **portfolio content** (`PROJECTS`, `CONTACT`). It currently holds TODO placeholders that the owner will replace.
   - `quests.ts`: the ordered quests. Each has a dialogue line, a `tool`, an `area`, a `condition(snapshot, area)`, `clicks` (the tile offsets that one click on the target plays) and a `landmark` kind. The tour stops (`TOUR`) are lighthouse base, lighthouse top, pond and big tree. The pier is `auto`: `startDocking()` builds it in the ending.
   - `questBuild.ts`: `runQuestBuild()` plays a quest's `clicks` through `applyTool` (`src/scene/applyTool.ts`). It is triggered by clicking the QuestGhost ring, a tile on the target, or a landmark standing on it.
-  - `useTourDirector.ts`: auto-advances the intro (`INTRO_MS`) and each done line (`DONE_MS`) using timers.
+  - `useTourDirector.ts`: auto-advances the intro (`INTRO_MS`) using a timer, and shows the next task `FLY_MS` after a tour card is closed.
   - `landmarks.ts`: `placeLandmark()` picks an anchor tile and claims its tiles. `findPier()` finds the pier. `PIER_DIR` (-1 = west) sets which way the pier reaches; the pier model, its sparkles, the dock flag and `dockPath` all follow it.
   - `useQuestWatcher.ts`: re-checks the active quest only when an island version counter changes. It also pins the island's `tool` to `selectToolLock()` (the current quest's tool, from intro until the last quest is done) and switches any other tool straight back. The Toolbar disables the other buttons. All tools unlock in the ending.
   - `useEndingDirector.ts`: starts docking, then calls `finishStory()`.
   - `shipPath.ts`: the arrive and dock curves. The ship sails in from the top-left of the default view (-x, since the camera sits at +x +z) in `ARRIVE_SECONDS` (2s) and waits off the island's west shore, where the pier quest builds out. Moving the waiting spot to another side means changing `ARRIVE_PATH`, `PIER_DIR` and the pier quest's `area` together.
 - `src/scene/`: R3F components (Island, Ocean, Ponds, Stones, Plants, Particles, Interaction, CameraRig, Lighting, HoverHighlight, PerfGovernor).
   - `CameraRig` uses `setViewOffset` (`viewShift`: large on small screens, small on wide ones) so the island sits above the dialogue and toolbar. In dev it exposes `window.camera` for headless tests.
+  - `CameraRig` also flies to `focus` (`focusPose`) and back home, over `FLY_MS`. On wide screens it frames the landmark left of centre, beside the centre-right card. On phones (≤640px, where the card is a bottom sheet) it frames the landmark high. The controls' target stays on the y = 0.5 plane, because `onChange` clamps it there. Controls and tools are off while `focus` is set.
   - `Lighting` owns the sky, fog and lights, and eases the sunset (`sunset.ts`).
 - `src/scene/story/`: Ship, Landmarks (pop animation, click to open the card, lighthouse beam, pond ripples, dock flag), QuestGhost (the ring over the task area), and the landmark and ship geometry.
   - `shipGeometry.ts` is a pirate ship (dark sails, Jolly Roger, cannons) merged into one mesh. Its sails are swung off square (`BRACE`) so they face the camera rather than showing their edge.
 - `src/ui/`: the Toolbar. During the tour it renders only the phone-placement Dialogue, then slides in for free play. `src/ui/story/` holds StoryHud, Hero (the name and pitch shown during the intro), Dialogue, ProjectCard, PortfolioPanel, ProjectBody, PirateAvatar and `Story.css`.
+  - `ProjectCard` sits centre-right (or as a bottom sheet on phones) and fades in after the camera lands. It shows the captain's done line, media (an image, GIF or `.mp4`/`.webm`), title, pitch, `result`, chips, links, "Download CV" (`CONTACT.cv`, a placeholder in `public/cv.pdf`), and Continue or Close. The Dialogue hides while any card is open.
   - `Dialogue` is mounted twice: `placement="ship"` in `App` and `placement="toolbar"` in the Toolbar. Each renders only on its own screens (`BESIDE_SHIP` media query: at least 900px wide and over 500px tall). The two copies keep separate intro state.
   - On wide screens the bubble floats beside the ship. `Ship.tsx` projects the ship to screen coordinates every frame and calls `setShipScreen()` in `shipBubble.ts`. That module places the bubble left of the ship, narrowed to fit, or below the ship near the left edge, and restyles it only when its rounded position changes.
   - `PirateAvatar` is the captain's portrait, drawn in inline SVG.
@@ -88,5 +91,6 @@ Software rendering gives roughly 10 fps. Compare performance before and after a 
 - The plan is in `~/.claude/plans/lets-do-something-like-federated-hollerith.md`.
 - **Outreach pass:** a second 5-phase plan is in `~/.claude/plans/pasted-content-id-7ae0-i-want-mossy-rivest.md`.
   - Phase 1 is done: hero, decor, one-click tasks, camera lock, hidden toolbar, auto-advancing dialogue.
-  - Next is Phase 2: camera fly-to and centered cards.
+  - Phase 2 is done: camera fly-to, centered cards with Continue, landmarks reopen their cards in free play.
+  - Next is Phase 3: landmark mini demos.
 - The owner will supply real project and contact content for `src/story/projects.ts`.

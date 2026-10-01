@@ -125,7 +125,7 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
       if (next && onTarget(next.area, at.tile % GRID, Math.floor(at.tile / GRID))) runQuestBuild(next)
       return
     }
-    openProject(quest.projectId)
+    openProject(quest.projectId, at)
   }
 
   return (

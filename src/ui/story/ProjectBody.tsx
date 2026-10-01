@@ -1,8 +1,13 @@
-import type { Project } from '../../story/projects'
+import { CONTACT, type Project } from '../../story/projects'
 
-/** Screenshot/GIF, or a soft placeholder tile with the project's initials. */
+const isVideo = (src: string) => /\.(mp4|webm)$/i.test(src)
+
+/** Screenshot, GIF or muted looping video, or a soft placeholder tile with the project's initials. */
 export function ProjectMedia({ project }: { project: Project }) {
-  if (project.media) return <img className="pf-media" src={project.media} alt={`${project.title} screenshot`} loading="lazy" />
+  const { media } = project
+  if (media && isVideo(media))
+    return <video className="pf-media" src={media} autoPlay muted loop playsInline aria-label={`${project.title} demo`} />
+  if (media) return <img className="pf-media" src={media} alt={`${project.title} screenshot`} loading="lazy" />
   const initials = project.title
     .split(/[\s.]+/)
     .filter(Boolean)
@@ -13,6 +18,22 @@ export function ProjectMedia({ project }: { project: Project }) {
     <div className="pf-media pf-media-empty" aria-hidden>
       {initials}
     </div>
+  )
+}
+
+/** The one number a visitor should remember. */
+export function ProjectResult({ project }: { project: Project }) {
+  if (!project.result) return null
+  return <p className="pf-result">{project.result}</p>
+}
+
+/** Small "Download CV" link, shown on every card. */
+export function CvLink() {
+  if (!CONTACT.cv) return null
+  return (
+    <a className="pf-cv" href={CONTACT.cv} target="_blank" rel="noreferrer" download>
+      ⬇ Download CV
+    </a>
   )
 }
 
