@@ -16,6 +16,7 @@ export function ProjectCard() {
   const lastDone = useStoryStore((s) => s.lastDone)
   const phase = useStoryStore((s) => s.phase)
   const closeCard = useStoryStore((s) => s.closeCard)
+  const autoBuild = useStoryStore((s) => s.autoBuild)
   if (!openCard) return null
 
   if (openCard === 'contact') {
@@ -43,13 +44,18 @@ export function ProjectCard() {
   if (!project) return null
   // The card the tour just raised (not one reopened from the island or the list).
   const done = lastDone ? QUESTS.find((q) => q.id === lastDone && q.projectId === openCard) : undefined
+  // In "Build it all" the tour director closes tour cards itself, so the
+  // visitor gets no Continue or ✕ to press.
+  const manual = !(done && autoBuild)
   const continueLabel = !done ? 'Close' : phase === 'questing' ? 'Continue →' : 'Finish the tour →'
 
   return (
     <aside className="pf-card" key={project.id} aria-label={project.title}>
-      <button className="pf-close" onClick={closeCard} aria-label="Close">
-        ✕
-      </button>
+      {manual && (
+        <button className="pf-close" onClick={closeCard} aria-label="Close">
+          ✕
+        </button>
+      )}
       {done && (
         <div className="pf-captain">
           <span className="pf-captain-avatar" aria-hidden>
@@ -68,9 +74,13 @@ export function ProjectCard() {
       <ProjectLinks project={project} />
       <div className="pf-card-foot">
         <CvLink />
-        <button className="pf-continue" onClick={closeCard} autoFocus>
-          {continueLabel}
-        </button>
+        {manual ? (
+          <button className="pf-continue" onClick={closeCard} autoFocus>
+            {continueLabel}
+          </button>
+        ) : (
+          <span className="pf-auto-next">⚡ Sailing on…</span>
+        )}
       </div>
     </aside>
   )
