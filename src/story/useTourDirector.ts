@@ -3,7 +3,7 @@ import { selectActiveQuest, useStoryStore } from '../store/useStoryStore'
 import { runQuestBuild } from './questBuild'
 
 /** How long the captain's greeting stays before the first task appears. */
-export const INTRO_MS = 3500
+export const INTRO_MS = 7000
 /** Camera flight to a landmark and back (CameraRig). */
 export const FLY_MS = 1000
 /** "Build it all": how long each card stays open (it fades in once the camera lands, so ~1.7s readable). */

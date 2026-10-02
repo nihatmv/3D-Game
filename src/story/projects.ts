@@ -121,10 +121,10 @@ export const PROJECTS: Project[] = [
 
 export const CONTACT: Contact = {
   name: 'Nihat Mammadli',
-  role: 'Front-End Developer',
-  pitch: 'Front-end developer at SABAH.HUB, growing into full-stack and automation engineering.',
+  role: 'Full-Stack & Automation Engineer',
+  pitch: 'Full-stack and automation engineer at SABAH.HUB, building web products end to end.',
   blurb:
-    'I’m looking for a remote role where I can ship polished front ends and grow into full-stack and automation work: APIs, data pipelines and the tooling that saves teams hours.',
+    'I’m looking for a remote role where I can ship polished products end to end: front ends, APIs, data pipelines and the automation that saves teams hours.',
   email: 'TODO@example.com',
   linkedin: 'https://linkedin.com/in/TODO',
   github: 'https://github.com/nihatmv',
