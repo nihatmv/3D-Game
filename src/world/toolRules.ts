@@ -1,6 +1,6 @@
 import { MAX_LEVEL, MAX_STONE, TileType } from './constants'
 import { MAX_PLANTS_PER_TILE } from './plantRules'
-import { idx } from './grid'
+import { idx, touchesLand } from './grid'
 import type { Tool } from '../store/useIslandStore'
 
 type TileState = {
@@ -22,7 +22,7 @@ export function canApply(s: TileState, tool: Tool, reverse: boolean, x: number, 
   const water = s.type[i] === TileType.Water
   switch (tool) {
     case 'soil':
-      return reverse ? h > 0 : water || h < MAX_LEVEL
+      return reverse ? h > 0 : water || (h > 0 ? h < MAX_LEVEL : touchesLand(s.height, x, z))
     case 'water':
       return reverse ? water : h > 0 && !(water && h <= 1)
     case 'stone':

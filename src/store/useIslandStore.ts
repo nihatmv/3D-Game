@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { HALF, MAX_LEVEL, MAX_STONE, TILE_COUNT, TileType } from '../world/constants'
-import { N8, hash2, idx, inBounds, initialIsland } from '../world/grid'
+import { N8, hash2, idx, inBounds, initialIsland, touchesLand } from '../world/grid'
 import { computePondLevels } from '../world/ponds'
 import { computeTerrainField, type TerrainField } from '../world/terrainField'
 import { MAX_PLANTS, isTree, plantRules, type PlantKind } from '../world/plantRules'
@@ -156,6 +156,8 @@ export const useIslandStore = create<IslandState>((set, get) => {
       if (type[i] === TileType.Water) {
         // Filling a pond comes first: keep the level, turn it into soil.
         type[i] = TileType.Soil
+      } else if (height[i] === 0 && !touchesLand(height, x, z)) {
+        return false
       } else if (height[i] < MAX_LEVEL) {
         height[i]++
         // Stones ride up with the land; bare tiles become fresh soil.

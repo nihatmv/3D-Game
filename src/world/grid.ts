@@ -50,3 +50,8 @@ export function initialIsland(): { height: Uint8Array; type: Uint8Array } {
   }
   return { height, type }
 }
+
+/** Does (x, z) share an edge with a land tile? New land can only grow from the shore. */
+export function touchesLand(height: Uint8Array, x: number, z: number): boolean {
+  return N4.some(([dx, dz]) => heightAt(height, x + dx, z + dz) > 0)
+}
