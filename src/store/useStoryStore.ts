@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { QUESTS, TOUR } from '../story/quests'
 import { placeLandmark, type Placement } from '../story/landmarks'
 import { track } from '../analytics'
+import { loadProgress, saveProgress } from '../story/progress'
 
 export type StoryPhase = 'intro' | 'questing' | 'ending' | 'done'
 export type ShipState = 'arriving' | 'waiting' | 'docking' | 'docked'
@@ -14,6 +15,8 @@ type StoryState = {
   questIndex: number
   /** The one-click build for the active quest is playing (see questBuild.ts). */
   building: boolean
+  /** "Build it all": useTourDirector plays the remaining stops by itself, briefly showing each card. */
+  autoBuild: boolean
   /** Ids of quests whose landmark is built. */
   built: string[]
   /** Where each built quest's landmark stands. */
@@ -36,8 +39,12 @@ type StoryState = {
   clearLastDone: () => void
   /** Build the active quest's landmark without doing the task. */
   skipStep: () => void
-  /** Build everything and go to the ending (dev and tests; visitors who skip get the /portfolio page). */
+  /** Build everything at once and go to the ending (dev and tests). */
   skipAll: () => void
+  /** The HUD's "Build it all": play the remaining stops one by one, hands-free (useTourDirector). */
+  buildAll: () => void
+  /** Rebuild saved tour stops on load (progress.ts). Partial: the intro plays, then the next stop. All: the ending. */
+  restore: (ids: string[]) => void
   /** Open a card; with `at`, the camera flies to that landmark too. */
   openProject: (id: CardId, at?: Placement) => void
   /** Close the card and fly home. In the tour this is "Continue": useTourDirector then shows the next task. */
@@ -53,6 +60,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   phase: 'intro',
   questIndex: 0,
   building: false,
+  autoBuild: false,
   built: [],
   placed: {},
   lastDone: null,
@@ -111,6 +119,26 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ placed })
   },
 
+  buildAll: () => {
+    if (get().phase === 'intro' || get().phase === 'questing') set({ autoBuild: true })
+  },
+
+  restore: (ids) => {
+    if (!ids.length) return
+    // Story state first: placing landmarks edits the island, which re-runs the quest watcher.
+    set({
+      built: ids,
+      questIndex: ids.length,
+      phase: ids.length >= TOUR.length ? 'ending' : 'intro',
+      lastDone: null,
+      openCard: null,
+      focus: null,
+    })
+    const placed: Record<string, Placement> = {}
+    for (const q of TOUR) if (ids.includes(q.id)) placed[q.id] = placeLandmark(q, placed)
+    set({ placed })
+  },
+
   openProject: (id, at) => set({ openCard: id, focus: at ?? null }),
   closeCard: () => set({ openCard: null, focus: null }),
   setShipState: (shipState) => set({ shipState }),
@@ -133,6 +161,12 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ phase: 'done', openCard: 'contact', focus: null })
   },
 }))
+
+// Resume a saved tour before the first render, and save whenever a landmark is built.
+useStoryStore.getState().restore(loadProgress())
+useStoryStore.subscribe((s, prev) => {
+  if (s.built !== prev.built) saveProgress(s.built)
+})
 
 // Dev-only handle for debugging from the browser console.
 if (import.meta.env.DEV) (window as unknown as { story: typeof useStoryStore }).story = useStoryStore

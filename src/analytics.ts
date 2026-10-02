@@ -13,7 +13,7 @@ import { VISITOR } from './visitor'
  * Every event carries `for` (the ?for= team) when the link was personalized.
  */
 
-export type AnalyticsEvent = 'tour_started' | 'landmark_completed' | 'skip_clicked' | 'contact_clicked'
+export type AnalyticsEvent = 'tour_started' | 'landmark_completed' | 'skip_clicked' | 'build_all_clicked' | 'contact_clicked'
 type Props = Record<string, string | number>
 type Provider = { send: (event: AnalyticsEvent, props: Props, done: () => void) => void }
 

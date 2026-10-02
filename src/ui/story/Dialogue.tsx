@@ -10,6 +10,8 @@ import { bindShipBubble } from './shipBubble'
 const GREETING = VISITOR ? `Ahoy, ${VISITOR} crew!` : 'Ahoy!'
 const INTRO = `${GREETING} Help us make this island safe to dock. Every landmark you raise shows a piece of its builder’s work.`
 
+const WELCOME_BACK = `${VISITOR ? `Welcome back, ${VISITOR} crew!` : 'Welcome back!'} Your landmarks are still standing. Let’s pick up where we left off.`
+
 const DOCKING = 'Everything’s ready, and look at that sky! Bringing her in to dock...'
 const DOCKED = 'We made it, just in time for sunset. Thank you, builder! Here’s who charted this island.'
 
@@ -57,7 +59,7 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   } else if (phase === 'intro') {
     // Wait until the ship is anchored before the captain speaks.
     if (shipState === 'arriving') return null
-    line = INTRO
+    line = questIndex > 0 ? WELCOME_BACK : INTRO
     key = 'intro'
     actions = (
       <button className="dlg-btn primary" onClick={startQuests}>

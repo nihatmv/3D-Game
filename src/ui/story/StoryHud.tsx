@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useStoryStore } from '../../store/useStoryStore'
 import { TOUR } from '../../story/quests'
-import { trackThenGo } from '../../analytics'
+import { track, trackThenGo } from '../../analytics'
+import { clearProgress } from '../../story/progress'
 import { PORTFOLIO_PATH } from '../../routes'
 import { withVisitor } from '../../visitor'
 import { Hero } from './Hero'
@@ -26,6 +27,7 @@ export function StoryHud() {
   useEscToClose()
   const built = useStoryStore((s) => s.built)
   const phase = useStoryStore((s) => s.phase)
+  const autoBuild = useStoryStore((s) => s.autoBuild)
   const finished = phase === 'ending' || phase === 'done'
   const stops = TOUR.filter((q) => built.includes(q.id)).length
 
@@ -45,19 +47,48 @@ export function StoryHud() {
         <a className="story-btn" href={portfolioHref}>
           📜 Portfolio
         </a>
+        {stops > 0 && (
+          <button
+            className="story-btn story-restart"
+            title="Restart the tour"
+            aria-label="Restart the tour"
+            onClick={() => {
+              clearProgress()
+              location.reload()
+            }}
+          >
+            <span>
+              ↺<span className="story-long"> Restart</span>
+            </span>
+          </button>
+        )}
       </div>
 
       {!finished && (
-        <a
-          className="story-btn story-skip"
-          href={portfolioHref}
-          onClick={(e) => {
-            e.preventDefault()
-            trackThenGo('skip_clicked', portfolioHref)
-          }}
-        >
-          Skip, just show me everything →
-        </a>
+        <div className="story-skip">
+          <button
+            className="story-btn"
+            disabled={autoBuild}
+            onClick={() => {
+              track('build_all_clicked')
+              useStoryStore.getState().buildAll()
+            }}
+          >
+            {autoBuild ? '⚡ Building…' : '⚡ Build it all'}
+          </button>
+          <a
+            className="story-btn"
+            href={portfolioHref}
+            onClick={(e) => {
+              e.preventDefault()
+              trackThenGo('skip_clicked', portfolioHref)
+            }}
+          >
+            <span>
+              Skip<span className="story-long">, just show me everything</span> →
+            </span>
+          </a>
+        </div>
       )}
 
       <Hero />
