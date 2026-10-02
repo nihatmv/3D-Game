@@ -125,10 +125,9 @@ export const CONTACT: Contact = {
   pitch: 'Full-stack and automation engineer at SABAH.HUB, building web products end to end.',
   blurb:
     'I’m looking for a remote role where I can ship polished products end to end: front ends, APIs, data pipelines and the automation that saves teams hours.',
-  email: 'TODO@example.com',
-  linkedin: 'https://linkedin.com/in/TODO',
+  email: 'nmammadli05@gmail.com',
+  linkedin: 'https://www.linkedin.com/in/nihat-mammadli-917268257/',
   github: 'https://github.com/nihatmv',
-  cv: '/cv.pdf',
   photo: '/photo.jpg',
 }
 
