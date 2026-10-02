@@ -2,8 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { TOUR } from '../../story/quests'
 import { useTouchScreen } from '../../hooks/useTouchScreen'
-import { PORTFOLIO_PATH } from '../../routes'
-import { VISITOR, withVisitor } from '../../visitor'
+import { VISITOR } from '../../visitor'
 import { PirateAvatar } from './PirateAvatar'
 import { bindShipBubble } from './shipBubble'
 
@@ -13,7 +12,6 @@ const INTRO = `${GREETING} Help us make this island safe to dock. Every landmark
 const WELCOME_BACK = `${VISITOR ? `Welcome back, ${VISITOR} crew!` : 'Welcome back!'} Your landmarks are still standing. Let’s pick up where we left off.`
 
 const DOCKING = 'Everything’s ready, and look at that sky! Bringing her in to dock...'
-const DOCKED = 'We made it, just in time for sunset. Thank you, builder! Here’s who charted this island.'
 
 /** Screens with room beside the ship for the speech bubble; smaller ones keep it above the toolbar. */
 const BESIDE_SHIP = '(min-width: 900px) and (min-height: 501px)'
@@ -30,7 +28,8 @@ function useBesideShip() {
 }
 
 /**
- * The captain's speech: intro, current task, and praise. The intro and the
+ * The captain's speech: intro, current task, praise and docking (silent once docked;
+ * the HUD's Get in touch takes over). The intro and the
  * praise move on by themselves (useTourDirector); tasks are one click on the glow.
  * `ship` floats beside the ship (wide screens); `toolbar` sits above the tools (phones).
  * Both are mounted and each renders only where it belongs.
@@ -44,9 +43,8 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   const quest = useStoryStore(selectActiveQuest)
   const building = useStoryStore((s) => s.building)
   const cardOpen = useStoryStore((s) => s.openCard !== null)
-  const { startQuests, openProject } = useStoryStore.getState()
+  const { startQuests } = useStoryStore.getState()
   const touch = useTouchScreen()
-  const [dismissed, setDismissed] = useState(false)
 
   let line: string
   let key: string
@@ -84,22 +82,6 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
     line = DOCKING
     key = 'docking'
     actions = null
-  } else if (phase === 'done' && !dismissed) {
-    line = DOCKED
-    key = 'docked'
-    actions = (
-      <>
-        <button className="dlg-btn ghost" onClick={() => setDismissed(true)}>
-          Keep building
-        </button>
-        <a className="dlg-btn" href={withVisitor(PORTFOLIO_PATH)}>
-          All projects
-        </a>
-        <button className="dlg-btn primary" onClick={() => openProject('contact')}>
-          Get in touch
-        </button>
-      </>
-    )
   } else {
     return null
   }

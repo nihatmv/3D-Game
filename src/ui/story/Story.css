@@ -66,6 +66,17 @@
   font-weight: 600;
 }
 
+.story-btn.primary {
+  background: #e9a55a;
+  color: #fff;
+}
+
+@media (hover: hover) {
+  .story-btn.primary:hover {
+    background: #db8f3f;
+  }
+}
+
 .story-btn:disabled {
   cursor: default;
   opacity: 0.75;

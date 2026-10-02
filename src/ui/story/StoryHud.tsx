@@ -23,7 +23,7 @@ function useEscToClose() {
 
 const portfolioHref = withVisitor(PORTFOLIO_PATH)
 
-/** Progress counter, the always-on Portfolio link, the time-of-day timeline, the skip link and the overlays. Both links open the plain page. */
+/** Progress counter, the always-on Portfolio link, the time-of-day timeline, the skip link (Get in touch once docked) and the overlays. Both links open the plain page. */
 export function StoryHud() {
   useEscToClose()
   const built = useStoryStore((s) => s.built)
@@ -67,7 +67,13 @@ export function StoryHud() {
 
       <TimeOfDay />
 
-      {!finished && (
+      {finished ? (
+        <div className="story-skip">
+          <button className="story-btn primary" onClick={() => useStoryStore.getState().openProject('contact')}>
+            ✉️ Get in touch
+          </button>
+        </div>
+      ) : (
         <div className="story-skip">
           <button
             className="story-btn"
