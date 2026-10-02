@@ -26,6 +26,7 @@ import { timeAgo } from '../../story/githubCommit'
 import { GRID, HALF } from '../../world/constants'
 import { QUESTS, onTarget, type Quest } from '../../story/quests'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
+import { tod } from '../timeOfDay'
 import { emit } from '../puffs'
 import { LAMP_R, LAMP_Y, PIER_DECK_Y, PIER_LENGTH, landmarkGeometry } from './landmarkGeometry'
 import { setLandmarkHovered } from './landmarkHover'
@@ -336,7 +337,7 @@ function wander(c: { r: number; h: number; v: number; p: number }, t: number, ou
 
 /**
  * Butterflies flapping around the grove, and fireflies that glow brighter at
- * sunset (hidden on slow machines). Two instanced meshes, no shadows; they
+ * dusk and night (hidden on slow machines). Two instanced meshes, no shadows; they
  * move on the frames that render anyway (no wake()).
  */
 function GroveLife() {
@@ -377,7 +378,7 @@ function GroveLife() {
     const f = flies.current
     if (f) {
       f.visible = !isLowPower()
-      const glow = 0.6 + 0.8 * useStoryStore.getState().sunset
+      const glow = 0.6 + 0.8 * tod.glow
       FIREFLIES.forEach((c, k) => {
         wander(c, t, _p)
         const pulse = glow * (0.5 + 0.5 * Math.sin(t * (2 + (k % 3)) + c.p))

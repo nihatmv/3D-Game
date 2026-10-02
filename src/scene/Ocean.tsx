@@ -11,7 +11,7 @@ import {
   createShoreTexture,
   updateShoreTexture,
 } from '../world/shoreField'
-import { SUNSET_PALETTE, sunset } from './story/sunset'
+import { NIGHT_PALETTE, SUNSET_PALETTE, tod } from './timeOfDay'
 
 const DEEP_DAY = new Color(PALETTE.deepWater)
 const DEEP_EVE = new Color(SUNSET_PALETTE.deepWater)
@@ -19,6 +19,9 @@ const SHALLOW_DAY = new Color(PALETTE.water)
 const SHALLOW_EVE = new Color(SUNSET_PALETTE.water)
 const FOAM_DAY = new Color('#f6fbf4')
 const FOAM_EVE = new Color(SUNSET_PALETTE.foam)
+const DEEP_NIGHT = new Color(NIGHT_PALETTE.deepWater)
+const SHALLOW_NIGHT = new Color(NIGHT_PALETTE.water)
+const FOAM_NIGHT = new Color(NIGHT_PALETTE.foam)
 
 const vertexShader = /* glsl */ `
   uniform float uTime;
@@ -136,17 +139,17 @@ export function Ocean() {
     shoreTex.dispose()
   }, [material, shoreTex])
 
-  const lastSunset = useRef(0)
+  const lastTod = useRef(-1)
   useFrame((_, dt) => {
     material.uniforms.uTime.value += dt
-    // Warm the water along with the sky at the end of the story.
-    if (sunset.t !== lastSunset.current) {
-      lastSunset.current = sunset.t
-      const k = sunset.t * sunset.t * (3 - 2 * sunset.t)
+    // Warm the water at golden hour and darken it at night, along with the sky.
+    if (tod.version !== lastTod.current) {
+      lastTod.current = tod.version
+      const { warm, night } = tod
       const u = material.uniforms
-      u.uDeep.value.lerpColors(DEEP_DAY, DEEP_EVE, k)
-      u.uShallow.value.lerpColors(SHALLOW_DAY, SHALLOW_EVE, k)
-      u.uFoam.value.lerpColors(FOAM_DAY, FOAM_EVE, k)
+      u.uDeep.value.lerpColors(DEEP_DAY, DEEP_EVE, warm).lerp(DEEP_NIGHT, night)
+      u.uShallow.value.lerpColors(SHALLOW_DAY, SHALLOW_EVE, warm).lerp(SHALLOW_NIGHT, night)
+      u.uFoam.value.lerpColors(FOAM_DAY, FOAM_EVE, warm).lerp(FOAM_NIGHT, night)
     }
   })
 

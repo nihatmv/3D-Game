@@ -7,6 +7,7 @@ import { PORTFOLIO_PATH } from '../../routes'
 import { withVisitor } from '../../visitor'
 import { Hero } from './Hero'
 import { ProjectCard } from './ProjectCard'
+import { TimeOfDay } from './TimeOfDay'
 import './Story.css'
 
 /** Esc closes the open card (in the tour, that's Continue). */
@@ -22,7 +23,7 @@ function useEscToClose() {
 
 const portfolioHref = withVisitor(PORTFOLIO_PATH)
 
-/** Progress counter, the always-on Portfolio link, the skip link and the overlays. Both links open the plain page. */
+/** Progress counter, the always-on Portfolio link, the time-of-day timeline, the skip link and the overlays. Both links open the plain page. */
 export function StoryHud() {
   useEscToClose()
   const built = useStoryStore((s) => s.built)
@@ -63,6 +64,8 @@ export function StoryHud() {
           </button>
         )}
       </div>
+
+      <TimeOfDay />
 
       {!finished && (
         <div className="story-skip">

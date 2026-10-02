@@ -34,15 +34,16 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
   - `quests.ts`: ordered quests; `TOUR` is the non-`auto` ones (the pier is built automatically in the ending). `questIndex` indexes `TOUR`.
   - `questBuild.ts` plays a quest's `clicks`; `useTourDirector` auto-advances and runs "⚡ Build it all"; `useEndingDirector` docks the ship; `progress.ts` saves tour progress to localStorage.
   - `landmarks.ts` places landmarks and the pier (`PIER_DIR`). `shipPath.ts` has the arrive/dock curves; moving the ship's waiting spot means changing `ARRIVE_PATH`, `PIER_DIR` and the pier quest's `area` together.
-- `src/scene/`: R3F components. `CameraRig` owns the home view, `setViewOffset` and the fly-to-focus; `Lighting` owns sky and sunset. Scenery: `Cabin`, `Waterfall`, `StonePath` (not clickable).
+- `src/scene/`: R3F components. `CameraRig` owns the home view, `setViewOffset` and the fly-to-focus; `Lighting` eases the time of day toward the story's `hour` (follows the visitor's local clock until the HUD timeline is dragged; the ending eases to golden hour). `timeOfDay.ts` holds the keyframes, sun/moon arcs and the `tod` state that water, cabin and fireflies read; `Sky` draws the dome, sun, moon and stars. Scenery: `Cabin`, `Waterfall`, `StonePath` (not clickable).
 - `src/scene/story/`: Ship, Landmarks (pop-in, demos, click to open card), QuestGhost (the "Click here" target).
-- `src/ui/`: Toolbar (hidden during the tour). `src/ui/story/`: StoryHud, Hero, Dialogue (mounted twice: beside the ship on wide screens, above the toolbar otherwise), ProjectCard, ProjectBody, ProjectDemo.
+- `src/ui/`: Toolbar (hidden during the tour). `src/ui/story/`: StoryHud, TimeOfDay (the timeline), Hero, Dialogue (mounted twice: beside the ship on wide screens, above the toolbar otherwise), ProjectCard, ProjectBody, ProjectDemo.
 
 ## Gotchas
 
 - In `completeQuest` / `skipAll`, set story state **before** placing the landmark (placing edits the island and re-runs the quest watcher).
 - Story actions called from store subscribers must guard against re-entry (`startDocking` checks `shipState === 'waiting'`).
 - Keep frame-time clamps loose (`Math.min(dt, 0.25)`).
+- The camera can't look above ~13° over the horizon, so the sun at dawn/sunset and the moon must stay low and in front of the home view (`RISE_AZ`/`SET_AZ` in `timeOfDay.ts`).
 - Landmarks `stopPropagation` on pointer events so clicks don't fire a tool.
 - Don't add Rolldown manual/vendor chunks: a `three` chunk crashed production. Check `npx vite preview` after any build config change.
 - Water tiles at different levels must not share an edge (`computePondLevels` merges them). The falls' spring is a mesh for this reason.

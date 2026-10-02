@@ -16,11 +16,11 @@ import { HALF, topY } from '../world/constants'
 import { DECOR_CABIN, HIGHLAND, HIGHLAND_X, HIGHLAND_Z } from '../world/decor'
 import { CHIMNEY_TOP, cabinGeometry, cabinLightsGeometry } from './decorGeometry'
 import { isLowPower, requestShadowUpdate } from './perf'
-import { sunset } from './story/sunset'
+import { tod } from './timeOfDay'
 
 /**
  * The old wooden cabin on the highland shelf (DECOR_CABIN). Pure scenery: one
- * merged mesh, windows and a lantern that glow warm as the sunset comes in,
+ * merged mesh, windows and a lantern that glow warm from sunset into the night,
  * and chimney smoke animated in its shader (hidden on slow machines).
  */
 
@@ -112,13 +112,13 @@ export function Cabin() {
   useEffect(() => requestShadowUpdate(2), [])
 
   const smokeMesh = useRef<Mesh>(null)
-  const lastSunset = useRef(-1)
+  const lastTod = useRef(-1)
   useFrame((_, dt) => {
     smokeMat.uniforms.uTime.value += dt
     if (smokeMesh.current) smokeMesh.current.visible = !isLowPower()
-    if (sunset.t !== lastSunset.current) {
-      lastSunset.current = sunset.t
-      const k = sunset.t * sunset.t * (3 - 2 * sunset.t)
+    if (tod.version !== lastTod.current) {
+      lastTod.current = tod.version
+      const k = tod.glow
       lightMat.color.lerpColors(GLASS_DAY, GLASS_EVE, k)
       lightMat.emissiveIntensity = k * 0.9
     }

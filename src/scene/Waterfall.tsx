@@ -18,7 +18,7 @@ import { PALETTE, tileMin, topY } from '../world/constants'
 import { HIGHLAND, HIGHLAND_X, HIGHLAND_Z, DECOR_FALLS } from '../world/decor'
 import { idx } from '../world/grid'
 import { isLowPower } from './perf'
-import { SUNSET_PALETTE, sunset } from './story/sunset'
+import { NIGHT_PALETTE, SUNSET_PALETTE, tod } from './timeOfDay'
 
 /**
  * The waterfall off the highland (DECOR_FALLS): a sheet that slides over the
@@ -266,6 +266,8 @@ const FOAM_DAY = new Color('#f6fbf4')
 const FOAM_EVE = new Color(SUNSET_PALETTE.foam)
 const WATER_DAY = new Color(PALETTE.water).multiplyScalar(1.08)
 const WATER_EVE = new Color(SUNSET_PALETTE.water)
+const WATER_NIGHT = new Color(NIGHT_PALETTE.fall)
+const FOAM_NIGHT = new Color(NIGHT_PALETTE.foam)
 
 function material(vertexShader: string, fragmentShader: string, extra: Record<string, { value: unknown }>) {
   return new ShaderMaterial({
@@ -317,16 +319,16 @@ export function Waterfall() {
   )
 
   const mistMesh = useRef<Mesh>(null)
-  const lastSunset = useRef(-1)
+  const lastTod = useRef(-1)
   useFrame((_, dt) => {
     for (const m of Object.values(mats)) m.uniforms.uTime.value += dt
     if (mistMesh.current) mistMesh.current.visible = !isLowPower()
-    if (sunset.t !== lastSunset.current) {
-      lastSunset.current = sunset.t
-      const k = sunset.t * sunset.t * (3 - 2 * sunset.t)
-      mats.sheet.uniforms.uColor.value.lerpColors(WATER_DAY, WATER_EVE, k * 0.6)
+    if (tod.version !== lastTod.current) {
+      lastTod.current = tod.version
+      const { warm, night } = tod
+      mats.sheet.uniforms.uColor.value.lerpColors(WATER_DAY, WATER_EVE, warm * 0.6).lerp(WATER_NIGHT, night)
       mats.spring.uniforms.uColor.value.copy(mats.sheet.uniforms.uColor.value)
-      for (const m of Object.values(mats)) m.uniforms.uFoam.value.lerpColors(FOAM_DAY, FOAM_EVE, k)
+      for (const m of Object.values(mats)) m.uniforms.uFoam.value.lerpColors(FOAM_DAY, FOAM_EVE, warm).lerp(FOAM_NIGHT, night)
     }
   })
 

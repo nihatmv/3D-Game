@@ -3,6 +3,7 @@ import { QUESTS, TOUR } from '../story/quests'
 import { placeLandmark, type Placement } from '../story/landmarks'
 import { track } from '../analytics'
 import { loadProgress, saveProgress } from '../story/progress'
+import { HOUR_GOLDEN, liveHour } from '../scene/timeOfDay'
 
 export type StoryPhase = 'intro' | 'questing' | 'ending' | 'done'
 export type ShipState = 'arriving' | 'waiting' | 'docking' | 'docked'
@@ -28,8 +29,12 @@ type StoryState = {
   /** Landmark the camera flies to while its card is open (CameraRig), or null for the home view. */
   focus: Placement | null
   shipState: ShipState
-  /** Sunset tween target: 0 = day, 1 = golden hour. */
-  sunset: number
+  /** Time of day (hours) that <Lighting/> eases toward; the HUD's timeline sets it. */
+  hour: number
+  /** Follow the visitor's clock. Dragging the timeline or the ending's sunset stops it. */
+  hourLive: boolean
+  /** Ease slowly into `hour` (the ending's sunset) instead of following the timeline. */
+  hourSlow: boolean
 
   startQuests: () => void
   setBuilding: (building: boolean) => void
@@ -54,6 +59,9 @@ type StoryState = {
   startDocking: () => void
   /** The ship is tied up: the story is over, show who built the island. */
   finishStory: () => void
+  setHour: (hour: number) => void
+  /** Go back to the visitor's clock, or catch up with it (called every minute). */
+  followClock: () => void
 }
 
 export const useStoryStore = create<StoryState>((set, get) => ({
@@ -67,7 +75,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   openCard: null,
   focus: null,
   shipState: 'arriving',
-  sunset: 0,
+  hour: liveHour(),
+  hourLive: true,
+  hourSlow: false,
 
   startQuests: () => {
     if (get().phase !== 'intro') return
@@ -154,12 +164,16 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       built: [...built, ...missing.map((q) => q.id).filter((id) => !built.includes(id))],
       placed,
       shipState: 'docking',
-      sunset: 1,
+      hour: HOUR_GOLDEN,
+      hourSlow: true,
+      hourLive: false,
     })
   },
   finishStory: () => {
     set({ phase: 'done', openCard: 'contact', focus: null })
   },
+  setHour: (hour) => set({ hour, hourSlow: false, hourLive: false }),
+  followClock: () => set({ hour: liveHour(), hourSlow: false, hourLive: true }),
 }))
 
 // Resume a saved tour before the first render, and save whenever a landmark is built.

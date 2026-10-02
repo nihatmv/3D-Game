@@ -8,6 +8,7 @@ import { Ocean } from './Ocean'
 import { Particles } from './Particles'
 import { PerfGovernor } from './PerfGovernor'
 import { Plants } from './Plants'
+import { Sky } from './Sky'
 import { Ponds } from './Ponds'
 import { StonePath } from './StonePath'
 import { Stones } from './Stones'
@@ -20,6 +21,7 @@ export function Scene() {
   return (
     <>
       <Lighting />
+      <Sky />
 
       <PerfGovernor />
       <CameraRig />

@@ -3,7 +3,9 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { MOUSE, MathUtils, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { HALF } from '../world/constants'
+import { HALF, topY } from '../world/constants'
+import { heightAt } from '../world/grid'
+import { useIslandStore } from '../store/useIslandStore'
 import { isTourActive, useStoryStore } from '../store/useStoryStore'
 import type { Placement } from '../story/landmarks'
 import { FLY_MS } from '../story/useTourDirector'
@@ -38,6 +40,18 @@ type Pose = { pos: Vector3; target: Vector3 }
 type Flight = { from: Pose; to: Pose; start: number }
 
 const UP = new Vector3(0, 1, 0)
+/** How far the camera stays above the ground (or sea) under it when tilted low. */
+const GROUND_CLEARANCE = 1.4
+
+/** Highest ground around a world point, so a low camera can't sink into a hill. */
+function groundBelow(wx: number, wz: number) {
+  const { height } = useIslandStore.getState()
+  const x = Math.floor(wx + HALF)
+  const z = Math.floor(wz + HALF)
+  let level = 0
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) level = Math.max(level, heightAt(height, x + dx, z + dz))
+  return Math.max(0, topY(level))
+}
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
 
 /**
@@ -63,7 +77,8 @@ function focusPose(at: Placement, home: Pose, camera: PerspectiveCamera, width: 
 /**
  * Right-drag orbits, middle-drag pans, wheel zooms. Left button is left free
  * for the tools. On touch, one finger is for the tools and two fingers turn and
- * zoom. Polar angle is clamped so the camera never dips under water.
+ * zoom. Polar angle is clamped just above the horizon, low enough to look up
+ * at the sun or moon but never under water.
  * Locked during the tour (the framing is fixed); free play unlocks it.
  * When the story sets `focus`, it flies to that landmark (FLY_MS) and back home after.
  */
@@ -140,7 +155,7 @@ export function CameraRig() {
       minDistance={10}
       maxDistance={Math.max(55, distance * 1.15)}
       minPolarAngle={0.25}
-      maxPolarAngle={1.2}
+      maxPolarAngle={1.47}
       screenSpacePanning={false}
       mouseButtons={{
         LEFT: -1 as MOUSE,
@@ -150,7 +165,10 @@ export function CameraRig() {
       touches={{ ONE: -1 as TOUCH, TWO: TOUCH.DOLLY_ROTATE }}
       onChange={() => {
         const c = ref.current
-        if (c) c.target.clamp(TARGET_MIN, TARGET_MAX)
+        if (!c) return
+        c.target.clamp(TARGET_MIN, TARGET_MAX)
+        const floor = groundBelow(camera.position.x, camera.position.z) + GROUND_CLEARANCE
+        if (camera.position.y < floor) camera.position.y = floor
       }}
     />
   )

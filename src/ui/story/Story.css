@@ -863,11 +863,161 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+/* Time-of-day timeline: top centre. The native range input sits invisibly on
+   top (keyboard, touch and a11y for free); its thumb is the same size as the
+   drawn knob, so the two line up. */
+.tod {
+  --tod-knob: 26px;
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 32px));
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 14px 3px 14px;
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.93);
+  box-shadow: 0 6px 18px rgba(120, 80, 40, 0.14);
+  user-select: none;
+}
+
+.tod-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 70px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #2f8f98;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tod-time.live {
+  color: #3d2f23;
+  cursor: default;
+}
+
+/* The live dot; once the visitor drags, the label gets a ↺ instead. */
+.tod-dot {
+  display: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4cb782;
+  box-shadow: 0 0 0 3px rgba(76, 183, 130, 0.2);
+}
+
+.tod-time.live .tod-dot {
+  display: block;
+}
+
+.tod-bar {
+  position: relative;
+  flex: 1;
+  height: 38px;
+}
+
+.tod-track {
+  position: absolute;
+  top: 9px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 2px rgba(40, 30, 20, 0.2);
+}
+
+.tod-rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: var(--tod-knob);
+  height: var(--tod-knob);
+  pointer-events: none;
+}
+
+.tod-knob {
+  position: absolute;
+  inset: 0;
+}
+
+.tod-thumb {
+  display: grid;
+  place-items: center;
+  width: var(--tod-knob);
+  height: var(--tod-knob);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(120, 80, 40, 0.3);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.tod:has(.tod-input:focus-visible) .tod-thumb {
+  outline: 2px solid #2f8f98;
+  outline-offset: 2px;
+}
+
+.tod-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--tod-knob);
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.tod-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--tod-knob);
+  height: var(--tod-knob);
+}
+
+.tod-input::-moz-range-thumb {
+  width: var(--tod-knob);
+  height: var(--tod-knob);
+  border: none;
+}
+
+.tod-ticks span {
+  position: absolute;
+  top: 26px;
+  transform: translateX(-50%);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a7562;
+  pointer-events: none;
+}
+
+/* Mid-size screens: the HUD and the skip buttons fill the top row, so the timeline drops below them. */
+@media (min-width: 641px) and (max-width: 1179px) {
+  .tod { top: 62px; }
+  .hero { top: 118px; }
+}
+
 /* Phones: bigger tap targets, panels become bottom sheets. */
 @media (max-width: 640px) {
   .story-hud { top: calc(10px + env(safe-area-inset-top)); left: 10px; }
   .story-skip { top: calc(54px + env(safe-area-inset-top)); right: auto; left: 10px; }
-  .hero { top: calc(100px + env(safe-area-inset-top)); padding: 12px 16px 14px; }
+  .tod { top: calc(98px + env(safe-area-inset-top)); left: 10px; right: 10px; width: auto; transform: none; }
+  .hero { top: calc(152px + env(safe-area-inset-top)); padding: 12px 16px 14px; }
   .hero-pitch { font-size: 13.5px; }
   .story-long { display: none; }
   .story-progress, .story-btn { min-height: 36px; box-sizing: border-box; font-size: 12px; padding: 6px 12px; }
@@ -902,7 +1052,8 @@
   .dlg-btn { padding: 5px 12px; }
   .story-hud { top: 8px; }
   .story-skip { top: 8px; }
-  .hero { top: 52px; padding: 8px 16px 10px; }
+  .tod { top: 52px; width: min(320px, calc(100vw - 32px)); }
+  .hero { top: 100px; padding: 8px 16px 10px; }
   .hero-pitch { display: none; }
   .pf-card { top: 52px; bottom: 8px; }
   .pf-card { max-height: calc(100vh - 60px); }
