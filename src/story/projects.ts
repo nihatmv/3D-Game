@@ -129,6 +129,7 @@ export const CONTACT: Contact = {
   linkedin: 'https://linkedin.com/in/TODO',
   github: 'https://github.com/nihatmv',
   cv: '/cv.pdf',
+  photo: '/photo.jpg',
 }
 
 export type Experience = {
