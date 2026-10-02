@@ -9,7 +9,7 @@
 /** Site-wide settings. */
 export const CONFIG = {
   /** Public GitHub username: the lighthouse shows its latest pushed commit (GitPulse demo). */
-  githubUser: 'TODO-github-username',
+  githubUser: 'nihatmv',
 }
 
 /**
@@ -109,7 +109,7 @@ export const PROJECTS: Project[] = [
   {
     id: 'sabah-hub',
     title: 'SABAH.HUB',
-    pitch: 'TODO: Grew from intern to full-time engineer.',
+    pitch: 'Front-end developer on SABAH.HUB’s web products, from intern to full-time.',
     result: 'TODO: Shipped 12 features to production',
     details: 'TODO: Team, scope and what you shipped.',
     stack: ['TODO'],
@@ -120,13 +120,14 @@ export const PROJECTS: Project[] = [
 ]
 
 export const CONTACT: Contact = {
-  name: 'TODO Your Name',
-  role: 'TODO Software Engineer',
-  pitch: 'TODO: I build full-stack products and embedded systems that ship.',
-  blurb: 'TODO: One or two sentences about what you are looking for.',
+  name: 'Nihat Mammadli',
+  role: 'Front-End Developer',
+  pitch: 'Front-end developer at SABAH.HUB, growing into full-stack and automation engineering.',
+  blurb:
+    'I’m looking for a remote role where I can ship polished front ends and grow into full-stack and automation work: APIs, data pipelines and the tooling that saves teams hours.',
   email: 'TODO@example.com',
   linkedin: 'https://linkedin.com/in/TODO',
-  github: 'https://github.com/TODO',
+  github: 'https://github.com/nihatmv',
   cv: '/cv.pdf',
 }
 
@@ -142,13 +143,13 @@ export type Experience = {
 /** Newest first. Shown on the /portfolio page. */
 export const EXPERIENCE: Experience[] = [
   {
-    role: 'TODO Software Engineer',
+    role: 'Front-End Developer',
     org: 'SABAH.HUB',
     when: 'TODO 2025 – now',
     summary: 'TODO: Joined as an intern, went full-time. What you own and one result.',
   },
   {
-    role: 'TODO Software Engineering Intern',
+    role: 'Front-End Developer Intern',
     org: 'SABAH.HUB',
     when: 'TODO 2024 – 2025',
     summary: 'TODO: What you built as an intern.',
