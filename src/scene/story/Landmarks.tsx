@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
-import { AdditiveBlending, DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three'
+import { AdditiveBlending, BufferAttribute, BufferGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three'
 import { useIslandStore } from '../../store/useIslandStore'
 import { isTourActive, selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { PIER_DIR, findPier, type Placement } from '../../story/landmarks'
 import { runQuestBuild } from '../../story/questBuild'
 import { breathingBpm, demoOf, loadBreathing, loadCommit, playCue, useDemoStore } from '../../story/demos'
 import { timeAgo } from '../../story/githubCommit'
-import { GRID } from '../../world/constants'
+import { GRID, HALF } from '../../world/constants'
 import { QUESTS, onTarget, type Quest } from '../../story/quests'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { emit } from '../puffs'
@@ -125,7 +125,7 @@ function SongBubble() {
   const song = demoOf('song')?.demo.song
   if (cue === 'idle' || !song || !shown) return null
   return (
-    <Html position-y={1.1} center zIndexRange={LABEL_Z} className="lm-label-wrap">
+    <Html position-y={1.4} center zIndexRange={LABEL_Z} className="lm-label-wrap">
       <div className={`lm-label lm-bubble${cue === 'recognized' ? ' found' : ''}`} key={cue}>
         {cue === 'listening' ? (
           <span className="lm-label-text">🎧 Listening…</span>
@@ -157,7 +157,7 @@ function PondRipples() {
     rings.current.forEach((ring, k) => {
       if (!ring) return
       const phase = (t + k / RIPPLES) % 1
-      ring.scale.setScalar(0.15 + phase * (listening ? 1.9 : 0.85))
+      ring.scale.setScalar(0.2 + phase * (listening ? 2.0 : 1.2))
       materials[k].opacity = (1 - phase) * (listening ? 0.85 : 0.55)
     })
     if (listening) wake(200)
@@ -170,6 +170,27 @@ function PondRipples() {
         </mesh>
       ))}
     </group>
+  )
+}
+
+/** An invisible floor over the lake's water tiles (the quest's click shape), so a click anywhere on the lake plays Cue. */
+function LakeHitArea({ quest, at }: { quest: Quest; at: Placement }) {
+  const geometry = useMemo(() => {
+    const pos: number[] = []
+    for (const [dx, dz] of quest.clicks) {
+      const x0 = quest.area.x + dx - HALF - at.x
+      const z0 = quest.area.z + dz - HALF - at.z
+      pos.push(x0, 0, z0, x0, 0, z0 + 1, x0 + 1, 0, z0, x0 + 1, 0, z0, x0, 0, z0 + 1, x0 + 1, 0, z0 + 1)
+    }
+    const g = new BufferGeometry()
+    g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3))
+    g.computeBoundingSphere()
+    return g
+  }, [quest, at])
+  useEffect(() => () => geometry.dispose(), [geometry])
+  return (
+    // Hidden meshes aren't drawn but still take raycasts.
+    <mesh geometry={geometry} position-y={0.02} visible={false} />
   )
 }
 
@@ -263,6 +284,7 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
       {quest.landmark === 'lighthouseTop' && COMMIT_ID && <CommitLabel />}
       {quest.landmark === 'lighthouseBase' && BREATHING_ID && <BaseGlow />}
       {quest.landmark === 'pondRipples' && <PondRipples />}
+      {quest.landmark === 'pondRipples' && <LakeHitArea quest={quest} at={at} />}
       {quest.landmark === 'pondRipples' && SONG_ID && <SongBubble />}
     </group>
   )

@@ -33,10 +33,10 @@ export function runQuestBuild(q: Quest) {
       const point = new Vector3(x - HALF + 0.5, surfaceY(height[i], type[i]), z - HALF + 0.5)
       applyTool(q.tool, { x, z }, false, point, true)
       wake(600)
-    }, k * STEP_MS)
+    }, k * (q.stepMs ?? STEP_MS))
   })
 
   setTimeout(() => {
     if (isActive(q)) useStoryStore.getState().completeQuest(q.id)
-  }, q.clicks.length * STEP_MS + 150)
+  }, q.clicks.length * (q.stepMs ?? STEP_MS) + 150)
 }

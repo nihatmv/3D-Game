@@ -37,6 +37,8 @@ export type Quest = {
    * on these tiles (offsets from the area centre), one after another.
    */
   clicks: ReadonlyArray<readonly [number, number]>
+  /** Gap between those clicks (default 200ms); shorter for long click lists. */
+  stepMs?: number
   landmark: LandmarkKind
   /** Not a tour stop: built automatically when the ship comes in to dock. */
   auto?: boolean
@@ -119,8 +121,10 @@ export const QUESTS: Quest[] = [
     doneLine: 'Listen to those ripples. Waves turn into a signal.',
     tool: 'water',
     area: { x: 17, z: 15, r: 1.5 },
-    condition: (s, a) => countInArea(a, (i) => s.type[i] === TileType.Water) >= 2,
-    clicks: [[0, 0], [1, 0]],
+    // The clicks are the lake's shape: six tiles in a band running across the default view.
+    condition: (s, a) => countInArea(a, (i) => s.type[i] === TileType.Water) >= 6,
+    clicks: [[-1, 1], [-1, 0], [0, 1], [0, 0], [1, 0], [1, -1]],
+    stepMs: 130,
     landmark: 'pondRipples',
   },
   {

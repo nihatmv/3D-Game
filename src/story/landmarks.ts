@@ -13,7 +13,13 @@ export const PIER_TILES = 3
 /** Which way along x the pier reaches: -1 = west, toward where the ship waits (top-left of the default view). */
 export const PIER_DIR = -1
 
-const centreX = (i: number) => (i % GRID) - HALF + 0.5
+/** Bank tiles (offsets from the pond quest's centre) where the lake bridge lands, across the lake's narrow middle. */
+export const POND_BRIDGE_ENDS: ReadonlyArray<readonly [number, number]> = [
+  [0, -1],
+  [0, 2],
+]
+
+const centreX =(i: number) => (i % GRID) - HALF + 0.5
 const centreZ = (i: number) => Math.floor(i / GRID) - HALF + 0.5
 
 /** Best tile by `score` (higher wins), ties broken by distance to the area centre. */
@@ -63,15 +69,14 @@ export function placeLandmark(q: Quest, placed: Record<string, Placement>): Plac
     }
 
     case 'pondRipples': {
-      let water = area.filter((i) => type[i] === TileType.Water)
-      if (water.length === 0) {
-        // Skipped: dig a small pond so the landmark has water to sit on.
-        island.dig(ax, az)
-        island.dig(ax + 1, az)
-        water = area.filter((i) => type[i] === TileType.Water)
-      }
+      // The lake is the quest's click shape: dig whatever is still dry (skipped or cut short).
+      const lake = q.clicks.map(([dx, dz]) => [ax + dx, az + dz] as const)
+      for (const [x, z] of lake) if (type[idx(x, z)] !== TileType.Water) island.dig(x, z)
+      let water = lake.map(([x, z]) => idx(x, z)).filter((i) => type[i] === TileType.Water)
       if (water.length === 0) water = [fallback]
-      island.claimTiles(water, water, { stones: true, plants: true })
+      // The bridge's two ends stand on the bank, so lock those too.
+      const ends = POND_BRIDGE_ENDS.map(([dx, dz]) => idx(ax + dx, az + dz))
+      island.claimTiles([...water, ...ends], [...water, ...ends], { stones: true, plants: true })
       const { pondLevel } = useIslandStore.getState()
       const tile = water[0]
       const y = Number.isNaN(pondLevel[tile]) ? groundY(tile) : pondLevel[tile]
