@@ -65,7 +65,7 @@ There is no test suite. Verify changes with `npm run build` and, for visual work
   - `CameraRig` also flies to `focus` (`focusPose`) and back home, over `FLY_MS`. On wide screens it frames the landmark left of centre, beside the centre-right card. On phones (≤640px, where the card is a bottom sheet) it frames the landmark high. The controls' target stays on the y = 0.5 plane, because `onChange` clamps it there. Controls and tools are off while `focus` is set.
   - `Lighting` owns the sky, fog and lights, and eases the sunset (`sunset.ts`).
 - `src/scene/story/`: Ship, Landmarks, QuestGhost (the ring over the task area, with sonar waves, a light column, a bobbing marker, and a bouncing drei `Html` "Click here" / "Tap here" pill), and the landmark and ship geometry.
-  - Landmarks covers the pop animation, the tree's sapling growth, click to open the card, the lighthouse beam, the pond ripples and the dock flag.
+  - Landmarks covers the pop animation, the tree's sapling growth (the tree is a grove over the 3x3 tiles around it, which `placeLandmark` clears and locks, with `GroveLife` butterflies and fireflies that brighten at sunset), click to open the card, the lighthouse beam, the pond ripples and the dock flag.
   - It also renders the demos: the commit label (drei `Html`), the base glow and lamp that breathe while the Breathing card is open, and a pond click that plays Cue with fast ripples and a "Recognized" bubble.
   - In-world `Html` labels use `zIndexRange` [2, 0] so they stay under the cards.
   - `shipGeometry.ts` is a pirate ship (dark sails, Jolly Roger, cannons) merged into one mesh. Its sails are swung off square (`BRACE`) so they face the camera rather than showing their edge.

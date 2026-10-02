@@ -113,7 +113,17 @@ export function placeLandmark(q: Quest, placed: Record<string, Placement>): Plac
           for (const p of plants) if (p.tile === i) n += isTree(p.kind) ? 10 : 1
           return n
         }) ?? fallback
-      island.claimTiles([tile], [tile], { stones: true, plants: true })
+      // The grove (landmarkGeometry) spreads over the land tiles around it.
+      const tx = tile % GRID
+      const tz = Math.floor(tile / GRID)
+      const grove = [tile]
+      for (let dz = -1; dz <= 1; dz++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const x = tx + dx
+          const z = tz + dz
+          if ((dx || dz) && x >= 0 && x < GRID && z >= 0 && z < GRID && isLand(idx(x, z))) grove.push(idx(x, z))
+        }
+      island.claimTiles(grove, grove, { stones: true, plants: true })
       return { tile, x: centreX(tile), y: groundY(tile), z: centreZ(tile) }
     }
   }

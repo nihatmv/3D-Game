@@ -1,7 +1,22 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
-import { AdditiveBlending, BufferAttribute, BufferGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three'
+import {
+  AdditiveBlending,
+  BufferAttribute,
+  BufferGeometry,
+  Color,
+  DoubleSide,
+  Euler,
+  Group,
+  IcosahedronGeometry,
+  InstancedMesh,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  Quaternion,
+  Vector3,
+} from 'three'
 import { useIslandStore } from '../../store/useIslandStore'
 import { isTourActive, selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { PIER_DIR, findPier, type Placement } from '../../story/landmarks'
@@ -286,7 +301,101 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
       {quest.landmark === 'pondRipples' && <PondRipples />}
       {quest.landmark === 'pondRipples' && <LakeHitArea quest={quest} at={at} />}
       {quest.landmark === 'pondRipples' && SONG_ID && <SongBubble />}
+      {quest.landmark === 'bigTree' && <GroveLife />}
     </group>
+  )
+}
+
+const BUTTERFLY_COLORS = ['#ffb347', '#f7a8c4', '#9ad0ff', '#fff27a', '#c9a8ff']
+/** Per critter: orbit radius, height, speed, phase. */
+const BUTTERFLIES = BUTTERFLY_COLORS.map((_, k) => ({ r: 0.7 + (k % 3) * 0.3, h: 0.45 + (k % 2) * 0.5, v: 0.35 + k * 0.07, p: k * 1.3 }))
+const FIREFLIES = Array.from({ length: 10 }, (_, k) => ({ r: 0.4 + ((k * 7) % 10) * 0.1, h: 0.3 + ((k * 3) % 10) * 0.12, v: 0.15 + (k % 4) * 0.05, p: k * 2.1 }))
+
+/** A wing: a rounded fan hinged on the body (x = 0), reaching out along +x. */
+function wingGeometry() {
+  const pos: number[] = []
+  const pts: [number, number][] = [[0, -0.03], [0.08, -0.11], [0.16, -0.08], [0.18, 0.02], [0.13, 0.1], [0.05, 0.08], [0, 0.03]]
+  for (let k = 1; k < pts.length - 1; k++) pos.push(...[pts[0], pts[k], pts[k + 1]].flatMap(([x, z]) => [x, 0, z]))
+  const g = new BufferGeometry()
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3))
+  g.computeBoundingSphere()
+  return g
+}
+
+const _m = new Matrix4()
+const _q = new Quaternion()
+const _e = new Euler()
+const _p = new Vector3()
+const _s = new Vector3()
+
+/** Where a critter is at time t: a wobbly loop around the tree. */
+function wander(c: { r: number; h: number; v: number; p: number }, t: number, out: Vector3) {
+  const a = t * c.v + c.p
+  return out.set(Math.cos(a) * c.r * (1 + 0.25 * Math.sin(a * 2.3)), c.h + 0.15 * Math.sin(a * 3.1), Math.sin(a) * c.r * (1 + 0.25 * Math.cos(a * 1.7)))
+}
+
+/**
+ * Butterflies flapping around the grove, and fireflies that glow brighter at
+ * sunset (hidden on slow machines). Two instanced meshes, no shadows; they
+ * move on the frames that render anyway (no wake()).
+ */
+function GroveLife() {
+  const wings = useRef<InstancedMesh>(null)
+  const flies = useRef<InstancedMesh>(null)
+  const [wingGeo, flyGeo] = useMemo(() => [wingGeometry(), new IcosahedronGeometry(0.045, 0)], [])
+  useEffect(() => () => (wingGeo.dispose(), flyGeo.dispose()), [wingGeo, flyGeo])
+
+  useEffect(() => {
+    const w = wings.current
+    if (!w) return
+    const c = new Color()
+    BUTTERFLY_COLORS.forEach((col, k) => {
+      w.setColorAt(2 * k, c.set(col))
+      w.setColorAt(2 * k + 1, c.set(col))
+    })
+    if (w.instanceColor) w.instanceColor.needsUpdate = true
+  }, [])
+
+  const ahead = useMemo(() => new Vector3(), [])
+  useFrame((state) => {
+    const t = state.clock.elapsedTime
+    const w = wings.current
+    if (w) {
+      BUTTERFLIES.forEach((b, k) => {
+        wander(b, t, _p)
+        wander(b, t + 0.05, ahead)
+        const heading = Math.atan2(ahead.x - _p.x, ahead.z - _p.z)
+        const flap = 0.25 + 0.9 * Math.abs(Math.sin(t * 14 + b.p))
+        for (const side of [1, -1]) {
+          _q.setFromEuler(_e.set(0, heading + Math.PI / 2, side * flap, 'YXZ'))
+          _s.set(side, 1, 1)
+          w.setMatrixAt(2 * k + (side > 0 ? 0 : 1), _m.compose(_p, _q, _s))
+        }
+      })
+      w.instanceMatrix.needsUpdate = true
+    }
+    const f = flies.current
+    if (f) {
+      f.visible = !isLowPower()
+      const glow = 0.6 + 0.8 * useStoryStore.getState().sunset
+      FIREFLIES.forEach((c, k) => {
+        wander(c, t, _p)
+        const pulse = glow * (0.5 + 0.5 * Math.sin(t * (2 + (k % 3)) + c.p))
+        f.setMatrixAt(k, _m.compose(_p, _q.identity(), _s.setScalar(Math.max(0.05, pulse))))
+      })
+      f.instanceMatrix.needsUpdate = true
+    }
+  })
+
+  return (
+    <>
+      <instancedMesh ref={wings} args={[wingGeo, undefined, BUTTERFLIES.length * 2]} raycast={() => null} frustumCulled={false}>
+        <meshBasicMaterial side={DoubleSide} />
+      </instancedMesh>
+      <instancedMesh ref={flies} args={[flyGeo, undefined, FIREFLIES.length]} raycast={() => null} frustumCulled={false}>
+        <meshBasicMaterial color="#fff2a0" transparent opacity={0.9} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </instancedMesh>
+    </>
   )
 }
 

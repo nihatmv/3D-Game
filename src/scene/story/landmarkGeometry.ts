@@ -9,6 +9,7 @@ import {
 } from 'three'
 import { PIER_DIR, POND_BRIDGE_ENDS } from '../../story/landmarks'
 import { QUESTS, type LandmarkKind } from '../../story/quests'
+import type { PlantKind } from '../../world/plantRules'
 import { build, rng, type Part } from '../geomUtil'
 import { makePlantGeometries } from '../plantGeometry'
 
@@ -243,6 +244,28 @@ function bigTree(): BufferGeometry {
       color: k % 3 ? '#f7a8c4' : '#fff1f5',
       pos: [Math.cos(a) * Math.cos(e) * 0.88, 1.8 + Math.sin(e) * 0.75, Math.sin(a) * Math.cos(e) * 0.88],
     })
+  }
+
+  // A small grove on the 3x3 tiles around it (placeLandmark clears and locks them).
+  // Taller trees go behind and beside (-x/-z, away from the camera); low plants in front.
+  const plant = makePlantGeometries()
+  const grove: [number, number, PlantKind, number][] = [
+    [-1.05, -0.55, 'pine', 1.9], [-0.35, -1.15, 'tree', 1.6], [0.95, -1.0, 'pine', 1.5],
+    [-1.15, 0.75, 'tree', 1.35], [-0.9, -1.25, 'pine', 1.2],
+    [0.85, 0.15, 'bush', 1.3], [0.15, 0.95, 'bush', 1.1], [-0.6, 0.55, 'bush', 1.0], [1.15, -0.45, 'bush', 0.9],
+    [0.6, 0.75, 'flower', 1.2], [1.2, 0.6, 'flower', 1.0], [-0.25, 1.2, 'flower', 1.1], [0.45, -0.55, 'flower', 0.9],
+    [1.1, 1.15, 'tuft', 1.2], [-1.2, 1.2, 'tuft', 1.0], [0.4, 1.3, 'tuft', 1.1], [-0.6, -0.4, 'tuft', 1.0],
+  ]
+  for (const [x, z, kind, sc] of grove) {
+    parts.push({ geo: plant[kind].clone(), pos: [x, -0.04, z], scale: [sc, sc, sc], rot: [0, r() * 6, 0] })
+  }
+  Object.values(plant).forEach((g) => g.dispose())
+
+  // Toadstools at the trunk's foot.
+  const shrooms: [number, number, number][] = [[0.32, 0.2, 1], [0.42, 0.02, 0.7], [-0.28, 0.32, 0.85]]
+  for (const [x, z, sc] of shrooms) {
+    parts.push({ geo: new CylinderGeometry(0.025 * sc, 0.03 * sc, 0.1 * sc, 6), color: '#f6efe2', pos: [x, 0.05 * sc, z] })
+    parts.push({ geo: new SphereGeometry(0.07 * sc, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2), color: '#e0574a', pos: [x, 0.1 * sc, z] })
   }
   return build(parts)
 }
