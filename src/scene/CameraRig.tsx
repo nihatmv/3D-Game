@@ -17,13 +17,18 @@ const TARGET_MAX = new Vector3(HALF - 2, 0.5, HALF - 2)
  * captain beside the ship (see Dialogue's BESIDE_SHIP) and need little room.
  */
 const viewShift = (w: number, h: number) => (w >= 900 && h > 500 ? 0.03 : 0.12)
-/** Distance of the starting camera from the island centre. */
-const START = new Vector3(20, 17, 20)
+/**
+ * The home view: what the camera looks at, and where it sits relative to that.
+ * The target is a little toward the back (−z) so the highland fits in frame.
+ */
+export const HOME_TARGET = new Vector3(2.4, 0.5, -2.4)
+const START = new Vector3(20, 17, 20).multiplyScalar(1.05)
+export const HOME_POSITION = HOME_TARGET.clone().add(START)
 const BASE_DISTANCE = START.length()
 
 /** Narrow (portrait) screens step back so the whole island fits across. */
 function fitDistance(aspect: number) {
-  return BASE_DISTANCE * Math.min(1.7, Math.max(1, 1.2 / aspect))
+  return BASE_DISTANCE * Math.min(2.1, Math.max(1, 1.25 / aspect))
 }
 
 /** Phones show cards as a bottom sheet (Story.css breakpoint); wider screens put them centre-right. */
@@ -129,7 +134,7 @@ export function CameraRig() {
       ref={ref}
       makeDefault
       enabled={!touring && !focus}
-      target={[0, 0.5, 0]}
+      target={HOME_TARGET.toArray()}
       enableDamping
       dampingFactor={0.08}
       minDistance={10}

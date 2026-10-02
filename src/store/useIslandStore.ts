@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { HALF, MAX_LEVEL, MAX_STONE, TILE_COUNT, TileType } from '../world/constants'
-import { N8, hash2, idx, inBounds, initialIsland, touchesLand } from '../world/grid'
+import { N8, hash2, idx, inBounds, initialIsland, initialLocked, touchesLand } from '../world/grid'
 import { computePondLevels } from '../world/ponds'
 import { computeTerrainField, type TerrainField } from '../world/terrainField'
 import { MAX_PLANTS, isTree, plantRules, type PlantKind } from '../world/plantRules'
@@ -135,7 +135,7 @@ export const useIslandStore = create<IslandState>((set, get) => {
     terrainVersion: 0,
     stones: initialStones,
     stoneVersion: 0,
-    locked: new Uint8Array(TILE_COUNT),
+    locked: initialLocked(),
 
     tool: 'soil',
     erase: false,

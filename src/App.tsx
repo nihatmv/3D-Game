@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { PerformanceMonitor, Stats } from '@react-three/drei'
 import { NeutralToneMapping, PCFShadowMap } from 'three'
 import { Scene } from './scene/Scene'
+import { HOME_POSITION } from './scene/CameraRig'
 import { setLowPower } from './scene/perf'
 import { hideBoot } from './boot'
 import { Toolbar } from './ui/Toolbar'
@@ -29,7 +30,7 @@ export default function App() {
         frameloop="demand"
         shadows={{ type: PCFShadowMap }}
         dpr={dpr}
-        camera={{ position: [20, 17, 20], fov: 40, near: 0.1, far: 300 }}
+        camera={{ position: HOME_POSITION.toArray(), fov: 40, near: 0.1, far: 300 }}
         gl={{ antialias: true, toneMapping: NeutralToneMapping, powerPreference: 'high-performance' }}
         onContextMenu={(e) => e.preventDefault()}
         // Fade the loading screen once a couple of frames have been drawn.
