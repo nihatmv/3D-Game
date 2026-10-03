@@ -33,10 +33,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), portfolioHtml((env.VITE_SITE_URL ?? '').replace(/\/+$/, ''))],
     build: {
-      // The island's App chunk is mostly three.js (~1 MB minified, ~295 kB gzip). It is lazy-loaded
-      // (main.tsx), so /portfolio never downloads it. Manual vendor chunks broke module order in
-      // production with rolldown, so it stays one chunk.
-      chunkSizeWarningLimit: 1200,
+      // The bundle is mostly three.js (~1.3 MB minified, ~380 kB gzip). Manual vendor chunks broke
+      // module order in production with rolldown, so it stays one chunk.
+      chunkSizeWarningLimit: 1400,
     },
   }
 })

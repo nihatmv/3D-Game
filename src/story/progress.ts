@@ -1,10 +1,9 @@
 import { TOUR } from './quests'
 
 /**
- * Tour progress kept in localStorage, so a visitor who skips to /portfolio (a
- * full page load) and comes back resumes where they left off. Only the built
- * tour stops are saved: the island rebuilds from them (placeLandmark), and
- * free-play edits are not kept.
+ * Tour progress kept in localStorage, so a visitor who leaves and comes back
+ * resumes where they left off. Only the built tour stops are saved: the island
+ * rebuilds from them (placeLandmark), and free-play edits are not kept.
  */
 const KEY = 'island-progress'
 const VERSION = 1

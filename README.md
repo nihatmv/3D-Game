@@ -11,9 +11,8 @@ pier, big tree) and opens one of my project cards. When everything is built,
 the ship docks at the pier, the sun sets to golden hour and a contact card
 opens.
 
-The game is optional, the portfolio isn't. The **📜 Portfolio** button
-always lists every project, and **Skip, just show me everything** builds the
-whole island at once.
+The game is optional, the portfolio isn't. **Skip, just show me everything**
+builds the whole island at once, and every landmark opens its project card.
 
 Built with Vite, React, TypeScript, React Three Fiber, drei and zustand. There
 are no model files: everything is generated from primitives or procedural
@@ -66,7 +65,7 @@ trees on soil, grass tufts, bushes and flowers on grass, and nothing on stone.
 - `src/store/useStoryStore.ts`: story progress (phase, built landmarks, open
   card, ship state, sunset).
 - `src/scene/story/` and `src/ui/story/`: ship, landmarks, quest ring, captain
-  dialogue, project cards and portfolio list.
+  dialogue and project cards.
 
 ## Editing the portfolio
 

@@ -23,11 +23,3 @@ export function sanitizeVisitor(raw: string | null): string | null {
 
 /** The visiting team's name, or null when the link isn't personalized. */
 export const VISITOR = sanitizeVisitor(new URLSearchParams(window.location.search).get('for'))
-
-/** Keep `?for=` on links between the island and the page. */
-export function withVisitor(href: string): string {
-  if (!VISITOR) return href
-  const url = new URL(href, window.location.origin)
-  url.searchParams.set('for', VISITOR)
-  return url.pathname + url.search
-}

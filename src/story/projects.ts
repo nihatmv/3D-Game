@@ -1,7 +1,6 @@
 /**
  * Portfolio content. This is the only file to edit when projects change:
- * quests point at projects by `id`, and every UI panel (the island cards and
- * the /portfolio page) reads from here.
+ * quests point at projects by `id`, and every island card reads from here.
  *
  * TODO: replace the placeholder text, links and media with the real content.
  */
@@ -129,34 +128,9 @@ export const CONTACT: Contact = {
   photo: '/photo.jpg',
 }
 
-export type Experience = {
-  role: string
-  org: string
-  /** e.g. '2024 – now'. */
-  when: string
-  /** One or two lines on what you did and the result. */
-  summary: string
-}
-
-/** Newest first. Shown on the /portfolio page. */
-export const EXPERIENCE: Experience[] = [
-  {
-    role: 'Front-End Developer',
-    org: 'SABAH.HUB',
-    when: 'TODO 2025 – now',
-    summary: 'TODO: Joined as an intern, went full-time. What you own and one result.',
-  },
-  {
-    role: 'Front-End Developer Intern',
-    org: 'SABAH.HUB',
-    when: 'TODO 2024 – 2025',
-    summary: 'TODO: What you built as an intern.',
-  },
-]
-
 export type Education = { degree: string; school: string; when: string; note?: string }
 
-/** Newest first. The first entry also appears on the contact card. */
+/** Newest first. The first entry appears on the contact card. */
 export const EDUCATION: Education[] = [
   {
     degree: 'B.Sc. Computer Engineering',

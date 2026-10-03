@@ -16,7 +16,7 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
 
 ## Golden rules
 
-1. **The portfolio must always be readable**, even without playing. The 📜 Portfolio link is always visible; it and "Skip" open the plain `/portfolio` page (no 3D). Phones see that page first.
+1. **The portfolio must always be readable**, even without playing. There is no separate page: the island is the portfolio, on phones too. "Skip" (`skipAll`) builds the whole island at once, so every landmark opens its card.
 2. **The owner's GPU is weak.** `frameloop="demand"`: call `wake(ms)` (`src/scene/perf.ts`) while animating and `requestShadowUpdate()` only while a shadow caster changes. Lambert materials, merged geometry or instancing, no new lights or post-processing. Optional eye candy checks `isLowPower()`. CSS animates only `transform`/`opacity`. No per-frame work while idle.
 3. **Content lives in data files only** (`src/story/projects.ts`, `quests.ts`).
 4. **Work in phases and stop after each one.** Don't commit unless asked.
@@ -24,8 +24,8 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
 
 ## Layout
 
-- `src/main.tsx` + `routes.ts`: `/portfolio` (and phones, unless `?tour`) render `PortfolioPage`; otherwise `App` (the 3D island) is lazy-loaded. `src/page/` must never import anything that pulls in three.
-- `src/visitor.ts`: `?for=acme` personalization (`VISITOR`, `withVisitor`). `src/analytics.ts`: `track()`, provider chosen by env (see `.env.example`).
+- `src/main.tsx` renders `App` (the 3D island), the only view.
+- `src/visitor.ts`: `?for=acme` personalization (`VISITOR`). `src/analytics.ts`: `track()`, provider chosen by env (see `.env.example`).
 - `index.html` + `vite.config.ts`: plain-HTML loading screen (`hideBoot()` in `src/boot.ts`) and OG tags filled from `CONTACT`. `public/og.png` is a headless capture; re-capture when the island's look changes.
 - `src/world/`: pure grid/terrain/tool logic, no React. `decor.ts` holds hand-placed scenery (`HIGHLAND`, `DECOR_FALLS`, `DECOR_CABIN`, `DECOR_PATH`); its tiles are locked, and decor must stay clear of quest areas and the pier row.
 - `src/store/`: `useIslandStore` (typed arrays + version counters, `window.island` in dev) and `useStoryStore` (the story state machine, `window.story` in dev): `phase` intro → questing → ending → done, `shipState` arriving → docked (it lands at the start), `focus` = landmark the camera flies to while its card is open.
@@ -53,13 +53,13 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
 
 ## Testing headless
 
-playwright-core with the cached chromium headless shell (pass `executablePath` under `~/Library/Caches/ms-playwright/chromium_headless_shell-*`), flags `--use-angle=swiftshader --enable-unsafe-swiftshader`, dev server `npx vite --port 5179 --strictPort`. Drive state via `window.story.getState()` / `window.island.getState()` (e.g. `skipAll()`); project world points with `window.camera`. Add `?tour` for phone-sized viewports. Software rendering is ~10 fps, so compare performance before/after, not absolute.
+playwright-core with the cached chromium headless shell (pass `executablePath` under `~/Library/Caches/ms-playwright/chromium_headless_shell-*`), flags `--use-angle=swiftshader --enable-unsafe-swiftshader`, dev server `npx vite --port 5179 --strictPort`. Drive state via `window.story.getState()` / `window.island.getState()` (e.g. `skipAll()`); project world points with `window.camera`. Software rendering is ~10 fps, so compare performance before/after, not absolute.
 
 ## Status
 
-Both 5-phase plans are done (base game, then the outreach pass: hero, fly-to cards, demos, `/portfolio` page, `?for=`, OG tags, analytics). Plans: `~/.claude/plans/lets-do-something-like-federated-hollerith.md` and `~/.claude/plans/pasted-content-id-7ae0-i-want-mossy-rivest.md`. Waiting on the owner's real content for `projects.ts`.
+Both 5-phase plans are done (base game, then the outreach pass: hero, fly-to cards, demos, `?for=`, OG tags, analytics; its `/portfolio` page was later removed). Plans: `~/.claude/plans/lets-do-something-like-federated-hollerith.md` and `~/.claude/plans/pasted-content-id-7ae0-i-want-mossy-rivest.md`. Waiting on the owner's real content for `projects.ts`.
 
-In progress: the crew pass (captain + 5 men land and build the island). Phases 1–4 done (ship lands first, bare island, five stops; crew steps off, runs to each site and hammers; ending at the cabin). Next: 5 timing pass to 60–90s, `/portfolio`, `og.png`.
+In progress: the crew pass (captain + 5 men land and build the island). Phases 1–4 done (ship lands first, bare island, five stops; crew steps off, runs to each site and hammers; ending at the cabin). Next: 5 timing pass to 60–90s, `og.png`.
 
 ## Updating this file
 
