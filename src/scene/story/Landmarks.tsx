@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import {
@@ -21,10 +21,11 @@ import { useIslandStore } from '../../store/useIslandStore'
 import { isTourActive, selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { PIER_DIR, findPier, type Placement } from '../../story/landmarks'
 import { runQuestBuild } from '../../story/questBuild'
-import { breathingBpm, demoOf, loadBreathing, loadCommit, playCue, useDemoStore } from '../../story/demos'
-import { timeAgo } from '../../story/githubCommit'
+import { breathingBpm, demoOf, loadBreathing, playCue, useDemoStore } from '../../story/demos'
 import { GRID, HALF } from '../../world/constants'
-import { QUESTS, onTarget, type Quest } from '../../story/quests'
+import { PROJECTS } from '../../story/projects'
+import { QUESTS, onTarget, type LandmarkKind, type Quest } from '../../story/quests'
+import { ProjectMedia } from '../../ui/story/ProjectBody'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { tod } from '../timeOfDay'
 import { emit } from '../puffs'
@@ -37,7 +38,6 @@ const TREE_GROW_MS = 2000
 const TREE_DELAY_MS = 400
 
 const BREATHING_ID = demoOf('breathing')?.projectId
-const COMMIT_ID = demoOf('commit')?.projectId
 const SONG_ID = demoOf('song')?.projectId
 
 /** The Breathing monitor card is open: lamp and base glow pulse at the breathing rhythm. */
@@ -85,26 +85,6 @@ function LighthouseBeam() {
         ))}
       </group>
     </group>
-  )
-}
-
-/** GitPulse: the latest commit, live from GitHub, floating over the lamp. */
-function CommitLabel() {
-  const commit = useDemoStore((s) => s.commit)
-  const shown = useStoryStore((s) => s.openCard === null || s.openCard === COMMIT_ID)
-  useEffect(loadCommit, [])
-  if (!commit || !shown) return null
-  return (
-    <Html position-y={LAMP_Y + 0.75} center zIndexRange={LABEL_Z} className="lm-label-wrap">
-      <div className="lm-label">
-        <span className="lm-label-kicker">
-          <span className={`lm-dot${commit.live ? ' live' : ''}`} />
-          {commit.live ? 'Latest commit' : 'Recent commit'}
-          {commit.date && ` · ${timeAgo(commit.date)}`}
-        </span>
-        <span className="lm-label-text">{commit.message}</span>
-      </div>
-    </Html>
   )
 }
 
@@ -189,6 +169,35 @@ function PondRipples() {
   )
 }
 
+/** Where the hover preview's bottom edge sits: just above each landmark (both lighthouse halves share the lamp's cap). */
+const PREVIEW_AT: Record<LandmarkKind, [number, number]> = {
+  lighthouseBase: [0, LAMP_Y + 0.65],
+  lighthouseTop: [0, LAMP_Y + 0.65],
+  pondRipples: [0, 0.9],
+  pier: [(PIER_DIR * PIER_LENGTH) / 2, PIER_DECK_Y + 0.6],
+  bigTree: [0, 2.95],
+}
+
+/** A small window over a hovered landmark: the project's picture and name. Clicking the landmark opens the card. */
+function ProjectPreview({ quest }: { quest: Quest }) {
+  const project = PROJECTS.find((p) => p.id === quest.projectId)
+  // The pond's own bubble ("Listening…", "Recognized") takes the spot while Cue plays.
+  const busy = useDemoStore((s) => quest.landmark === 'pondRipples' && s.cue !== 'idle')
+  if (!project || busy) return null
+  const [x, y] = PREVIEW_AT[quest.landmark]
+  return (
+    <Html position={[x, y, 0]} center zIndexRange={LABEL_Z} className="lm-label-wrap">
+      <div className="lm-preview-lift">
+        <div className="lm-preview">
+          <ProjectMedia project={project} />
+          <span className="lm-label-text">{project.title}</span>
+          <span className="lm-label-kicker">Click for details</span>
+        </div>
+      </div>
+    </Html>
+  )
+}
+
 /** An invisible floor over the lake's water tiles (the quest's click shape), so a click anywhere on the lake plays Cue. */
 function LakeHitArea({ quest, at }: { quest: Quest; at: Placement }) {
   const geometry = useMemo(() => {
@@ -215,7 +224,9 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
   const start = useRef(performance.now())
   const geometry = landmarkGeometry(quest.landmark)
   const openProject = useStoryStore((s) => s.openProject)
-  const hovered = useRef(false)
+  const [hovered, setHovered] = useState(false)
+  // Outside the tour only: there a click builds instead of opening a card.
+  const canPreview = useStoryStore((s) => s.openCard === null && !isTourActive(s))
 
   // Celebrate: sparkles where it rises (along the deck for the pier).
   useEffect(() => {
@@ -243,10 +254,7 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
       }
     }
     const t = Math.min(1, (performance.now() - start.current) / BUILD_MS)
-    const base = t < 1 ? popCurve(t) : 1
-    const target = base * (hovered.current ? 1.05 : 1)
-    const s = g.scale.x + (target - g.scale.x) * (t < 1 ? 1 : 0.25)
-    g.scale.setScalar(Math.max(0.001, s))
+    g.scale.setScalar(Math.max(0.001, t < 1 ? popCurve(t) : 1))
     if (t < 1) {
       wake(200)
       requestShadowUpdate()
@@ -283,12 +291,12 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
       onClick={onClick}
       onPointerOver={(e) => {
         e.stopPropagation()
-        hovered.current = true
+        if (e.pointerType !== 'touch') setHovered(true)
         setLandmarkHovered(true)
         wake(400)
       }}
       onPointerOut={() => {
-        hovered.current = false
+        setHovered(false)
         setLandmarkHovered(false)
         wake(400)
       }}
@@ -297,12 +305,12 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
         <meshLambertMaterial vertexColors flatShading />
       </mesh>
       {quest.landmark === 'lighthouseTop' && <LighthouseBeam />}
-      {quest.landmark === 'lighthouseTop' && COMMIT_ID && <CommitLabel />}
       {quest.landmark === 'lighthouseBase' && BREATHING_ID && <BaseGlow />}
       {quest.landmark === 'pondRipples' && <PondRipples />}
       {quest.landmark === 'pondRipples' && <LakeHitArea quest={quest} at={at} />}
       {quest.landmark === 'pondRipples' && SONG_ID && <SongBubble />}
       {quest.landmark === 'bigTree' && <GroveLife />}
+      {hovered && canPreview && <ProjectPreview quest={quest} />}
     </group>
   )
 }

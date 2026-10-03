@@ -705,6 +705,38 @@
   text-overflow: ellipsis;
 }
 
+/* Hover preview: a small window sitting on top of the landmark (the lift puts its bottom edge on the anchor). */
+.lm-preview-lift {
+  transform: translateY(-50%);
+}
+
+.lm-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 168px;
+  padding: 6px 6px 8px;
+  border-radius: 14px;
+  background: rgba(255, 250, 242, 0.96);
+  box-shadow: 0 8px 22px rgba(60, 40, 20, 0.24);
+  animation: dlg-in 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lm-preview .pf-media {
+  margin-bottom: 4px;
+  border-radius: 10px;
+}
+
+.lm-preview .pf-media-empty {
+  font-size: 26px;
+}
+
+.lm-preview .lm-label-text,
+.lm-preview .lm-label-kicker {
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
 .lm-bubble.found {
   background: #fff6dc;
   animation: bubble-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1077,6 +1109,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pf-card, .story-btn, .dlg, .dlg-body, .hero,
-  .lm-label, .lm-dot.live, .pf-wave-track, .pf-milestone-arrow,
+  .lm-label, .lm-preview, .lm-dot.live, .pf-wave-track, .pf-milestone-arrow,
   .quest-cta, .quest-cta::after { animation: none; transition: none; }
 }
