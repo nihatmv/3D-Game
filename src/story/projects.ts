@@ -124,7 +124,7 @@ export const CONTACT: Contact = {
   role: 'Full-Stack & Automation Engineer',
   pitch: 'Full-stack and automation engineer at SABAH.HUB, building web products end to end.',
   blurb:
-    'I’m looking for a remote role where I can ship polished products end to end: front ends, APIs, data pipelines and the automation that saves teams hours.',
+    'I build full-stack products and the automations behind them, from the UI people click to the scripts that quietly do the boring work.',
   email: 'nmammadli05@gmail.com',
   linkedin: 'https://www.linkedin.com/in/nihat-mammadli-917268257/',
   github: 'https://github.com/nihatmv',
@@ -161,9 +161,9 @@ export type Education = { degree: string; school: string; when: string; note?: s
 /** Newest first. The first entry also appears on the contact card. */
 export const EDUCATION: Education[] = [
   {
-    degree: 'TODO B.Sc. Computer Engineering',
+    degree: 'B.Sc. Computer Engineering',
     school: 'ADA University',
-    when: 'TODO 2021 – 2025',
+    when: '2022 – 2026',
     note: 'TODO: Senior design project: the Breathing Monitor.',
   },
 ]
