@@ -22,8 +22,8 @@ const WOOD = '#a77450'
 const WOOD_LIGHT = '#bf8b62'
 const WOOD_DARK = '#7a5238'
 
-/** Height of the lighthouse base; the top section starts here. */
-export const LIGHTHOUSE_BASE_H = 1.18
+/** Height of the lighthouse's lower section; the upper tower starts here. */
+const LIGHTHOUSE_BASE_H = 1.18
 const TOP_TOWER_H = 0.85
 const GALLERY_H = 0.07
 /** Centre of the glowing lamp, relative to the ground. */
@@ -36,21 +36,16 @@ export const PIER_LENGTH = 3.4
 /** Door faces the default camera (+x/+z diagonal). */
 const FACE = Math.PI / 4
 
-function lighthouseBase(): BufferGeometry {
+function lighthouse(): BufferGeometry {
   const door: [number, number, number] = [Math.cos(FACE) * 0.33, 0.38, Math.sin(FACE) * 0.33]
+  const y0 = LIGHTHOUSE_BASE_H
+  const gy = y0 + TOP_TOWER_H
   return build([
     { geo: new CylinderGeometry(0.46, 0.5, 0.18, 10), color: STONE, pos: [0, 0.09, 0] },
     { geo: new CylinderGeometry(0.3, 0.36, 1.0, 12), color: WHITE, pos: [0, 0.68, 0] },
     { geo: new CylinderGeometry(0.325, 0.345, 0.22, 12), color: RED, pos: [0, 0.62, 0] },
     { geo: new BoxGeometry(0.06, 0.34, 0.2), color: WOOD_DARK, pos: door, rot: [0, -FACE, 0] },
     { geo: new BoxGeometry(0.05, 0.14, 0.1), color: DARK, pos: [Math.cos(FACE) * 0.31, 0.98, Math.sin(FACE) * 0.31], rot: [0, -FACE, 0] },
-  ])
-}
-
-function lighthouseTop(): BufferGeometry {
-  const y0 = LIGHTHOUSE_BASE_H
-  const gy = y0 + TOP_TOWER_H
-  return build([
     { geo: new CylinderGeometry(0.25, 0.3, TOP_TOWER_H, 12), color: WHITE, pos: [0, y0 + TOP_TOWER_H / 2, 0] },
     { geo: new CylinderGeometry(0.27, 0.29, 0.2, 12), color: RED, pos: [0, y0 + 0.45, 0] },
     { geo: new CylinderGeometry(0.42, 0.4, GALLERY_H, 12), color: DARK, pos: [0, gy + GALLERY_H / 2, 0] },
@@ -271,8 +266,7 @@ function bigTree(): BufferGeometry {
 }
 
 const MAKERS: Record<LandmarkKind, () => BufferGeometry> = {
-  lighthouseBase,
-  lighthouseTop,
+  lighthouse,
   pondRipples: pond,
   pier,
   bigTree,

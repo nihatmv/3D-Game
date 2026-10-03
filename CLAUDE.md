@@ -30,7 +30,7 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
 - `src/world/`: pure grid/terrain/tool logic, no React. `decor.ts` holds hand-placed scenery (`HIGHLAND`, `DECOR_FALLS`, `DECOR_CABIN`, `DECOR_PATH`); its tiles are locked, and decor must stay clear of quest areas and the pier row.
 - `src/store/`: `useIslandStore` (typed arrays + version counters, `window.island` in dev) and `useStoryStore` (the story state machine, `window.story` in dev): `phase` intro → questing → ending → done, `shipState` arriving → waiting → docking → docked, `focus` = landmark the camera flies to while its card is open.
 - `src/story/`: content and story logic.
-  - `projects.ts` is the portfolio content (still TODO placeholders). A project's `demo` ties to a landmark: `commit` → lighthouse top, `breathing` → lighthouse base, `song` → pond, `milestone` → tree.
+  - `projects.ts` is the portfolio content (still TODO placeholders). A project's `demo` ties to a landmark: `commit` → lighthouse, `song` → pond, `milestone` → tree.
   - `quests.ts`: ordered quests; `TOUR` is the non-`auto` ones (the pier is built automatically in the ending). `questIndex` indexes `TOUR`.
   - `questBuild.ts` plays a quest's `clicks`; `useTourDirector` auto-advances and runs "⚡ Build it all"; `useEndingDirector` docks the ship; `progress.ts` saves tour progress to localStorage.
   - `landmarks.ts` places landmarks and the pier (`PIER_DIR`). `shipPath.ts` has the arrive/dock curves; moving the ship's waiting spot means changing `ARRIVE_PATH`, `PIER_DIR` and the pier quest's `area` together.

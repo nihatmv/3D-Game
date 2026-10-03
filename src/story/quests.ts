@@ -1,4 +1,4 @@
-import { MAX_STONE, TILE_COUNT, TileType } from '../world/constants'
+import { TILE_COUNT, TileType } from '../world/constants'
 import { idx, inBounds, initialIsland } from '../world/grid'
 import { isTree, type PlantKind } from '../world/plantRules'
 import type { Tool } from '../store/useIslandStore'
@@ -9,7 +9,7 @@ import type { Tool } from '../store/useIslandStore'
  * Tour stops are one click each (`clicks`); `auto` quests are built in the ending.
  */
 
-export type LandmarkKind = 'lighthouseBase' | 'lighthouseTop' | 'pondRipples' | 'pier' | 'bigTree'
+export type LandmarkKind = 'lighthouse' | 'pondRipples' | 'pier' | 'bigTree'
 
 /** Tile-space circle: centre tile and radius in tiles. */
 export type Area = { x: number; z: number; r: number }
@@ -42,8 +42,6 @@ export type Quest = {
   landmark: LandmarkKind
   /** Not a tour stop: built automatically when the ship comes in to dock. */
   auto?: boolean
-  /** Build on the same tile as an earlier quest's landmark. */
-  anchorOf?: string
 }
 
 /** Tiles inside the area's circle. */
@@ -91,28 +89,15 @@ const plantsInArea = (s: IslandSnapshot, a: Area, pred: (kind: PlantKind) => boo
 
 export const QUESTS: Quest[] = [
   {
-    id: 'lighthouse-base',
-    projectId: 'breathing-monitor',
-    dialogue: 'Rocky waters out here. Let’s lay a stone base for a lighthouse.',
-    doneLine: 'A solid foundation! Every good thing starts with the hardware.',
+    id: 'lighthouse',
+    projectId: 'gitpulse',
+    dialogue: 'Rocky waters out here. Let’s raise a lighthouse and light the lamp!',
+    doneLine: 'There it is, a beam across the water. Signals sent and received!',
     tool: 'stone',
     area: { x: 13, z: 13, r: 1.5 },
     condition: (s, a) => sumInArea(a, (i) => s.stones[i]) >= 3,
     clicks: [[0, 0], [1, 0], [0, 1]],
-    landmark: 'lighthouseBase',
-  },
-  {
-    id: 'lighthouse-top',
-    projectId: 'gitpulse',
-    dialogue: 'Now raise the tower, and we’ll light the lamp!',
-    doneLine: 'There it is, a beam across the water. Signals sent and received!',
-    tool: 'stone',
-    area: { x: 13, z: 13, r: 1.5 },
-    condition: (s, a) => countInArea(a, (i) => s.stones[i] >= MAX_STONE) >= 1,
-    // The base's tile is locked, so the tower goes up next to it.
-    clicks: Array.from({ length: MAX_STONE }, () => [1, 0] as const),
-    landmark: 'lighthouseTop',
-    anchorOf: 'lighthouse-base',
+    landmark: 'lighthouse',
   },
   {
     id: 'pond',

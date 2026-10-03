@@ -18,13 +18,12 @@ import {
   Vector3,
 } from 'three'
 import { useIslandStore } from '../../store/useIslandStore'
-import { isTourActive, selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
+import { isTourActive, useStoryStore } from '../../store/useStoryStore'
 import { PIER_DIR, findPier, type Placement } from '../../story/landmarks'
-import { runQuestBuild } from '../../story/questBuild'
-import { breathingBpm, demoOf, loadBreathing, playCue, useDemoStore } from '../../story/demos'
-import { GRID, HALF } from '../../world/constants'
+import { demoOf, playCue, useDemoStore } from '../../story/demos'
+import { HALF } from '../../world/constants'
 import { PROJECTS } from '../../story/projects'
-import { QUESTS, onTarget, type LandmarkKind, type Quest } from '../../story/quests'
+import { QUESTS, type LandmarkKind, type Quest } from '../../story/quests'
 import { ProjectMedia } from '../../ui/story/ProjectBody'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { tod } from '../timeOfDay'
@@ -37,14 +36,7 @@ const BUILD_MS = 900
 const TREE_GROW_MS = 2000
 const TREE_DELAY_MS = 400
 
-const BREATHING_ID = demoOf('breathing')?.projectId
 const SONG_ID = demoOf('song')?.projectId
-
-/** The Breathing monitor card is open: lamp and base glow pulse at the breathing rhythm. */
-const breathingShown = () => BREATHING_ID !== undefined && useStoryStore.getState().openCard === BREATHING_ID
-
-/** 0..1 breath (in, then out) at the sample file's rate. */
-const breath = (seconds: number) => 0.5 - 0.5 * Math.cos((2 * Math.PI * breathingBpm() * seconds) / 60)
 
 /** Keep in-world labels under the story cards (z-index 3). */
 const LABEL_Z: [number, number] = [2, 0]
@@ -56,23 +48,18 @@ function popCurve(t: number): number {
   return 1 + (c1 + 1) * u * u * u + c1 * u * u
 }
 
-/**
- * Two soft light cones sweeping around the lamp (hidden on slow machines).
- * The lamp breathes while the Breathing monitor card is open.
- */
+/** Two soft light cones sweeping around the lamp (hidden on slow machines). */
 function LighthouseBeam() {
   const ref = useRef<Group>(null)
   const cones = useRef<Group>(null)
-  const lamp = useRef<Mesh>(null)
   useFrame((state) => {
     const t = state.clock.elapsedTime
     if (ref.current) ref.current.rotation.y = t * 0.7
     if (cones.current) cones.current.visible = !isLowPower()
-    if (lamp.current) lamp.current.scale.setScalar(breathingShown() ? 1 + breath(t) * 0.6 : 1)
   })
   return (
     <group ref={ref} position-y={LAMP_Y}>
-      <mesh ref={lamp} raycast={() => null}>
+      <mesh raycast={() => null}>
         <sphereGeometry args={[LAMP_R, 10, 8]} />
         <meshBasicMaterial color="#fff3b8" />
       </mesh>
@@ -85,32 +72,6 @@ function LighthouseBeam() {
         ))}
       </group>
     </group>
-  )
-}
-
-/** Breathing monitor: a ring around the base that glows in and out while its card is open. */
-function BaseGlow() {
-  const ring = useRef<Mesh>(null)
-  const material = useMemo(
-    () => new MeshBasicMaterial({ color: '#9ff0e6', transparent: true, depthWrite: false, blending: AdditiveBlending }),
-    [],
-  )
-  useEffect(() => () => material.dispose(), [material])
-  useEffect(loadBreathing, [])
-  useFrame((state) => {
-    const r = ring.current
-    if (!r) return
-    r.visible = breathingShown()
-    if (!r.visible) return
-    const b = breath(state.clock.elapsedTime)
-    r.scale.setScalar(0.85 + b * 0.5)
-    material.opacity = 0.25 + b * 0.5
-    wake(200)
-  })
-  return (
-    <mesh ref={ring} position-y={0.04} rotation-x={-Math.PI / 2} material={material} renderOrder={3} visible={false} raycast={() => null}>
-      <ringGeometry args={[0.6, 1, 32]} />
-    </mesh>
   )
 }
 
@@ -169,10 +130,9 @@ function PondRipples() {
   )
 }
 
-/** Where the hover preview's bottom edge sits: just above each landmark (both lighthouse halves share the lamp's cap). */
+/** Where the hover preview's bottom edge sits: just above each landmark. */
 const PREVIEW_AT: Record<LandmarkKind, [number, number]> = {
-  lighthouseBase: [0, LAMP_Y + 0.65],
-  lighthouseTop: [0, LAMP_Y + 0.65],
+  lighthouse: [0, LAMP_Y + 0.65],
   pondRipples: [0, 0.9],
   pier: [(PIER_DIR * PIER_LENGTH) / 2, PIER_DECK_Y + 0.6],
   bigTree: [0, 2.95],
@@ -230,7 +190,7 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
 
   // Celebrate: sparkles where it rises (along the deck for the pier).
   useEffect(() => {
-    const top = quest.landmark === 'lighthouseTop' ? LAMP_Y : 0.6
+    const top = quest.landmark === 'lighthouse' ? LAMP_Y : 0.6
     if (quest.landmark === 'pier') {
       for (let k = 0; k < 3; k++) emit('sparkle', at.x + PIER_DIR * (k + 0.5) * (PIER_LENGTH / 3), at.y + 0.4, at.z, 10)
     } else {
@@ -271,13 +231,8 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
     if (e.button !== 0) return
     // Cue demo: the pond "listens" whenever it's clicked, in the tour too.
     if (quest.landmark === 'pondRipples' && SONG_ID) playCue()
-    // During the tour a landmark standing on the next target (the lighthouse base) is part of it.
-    const story = useStoryStore.getState()
-    const next = selectActiveQuest(story)
-    if (isTourActive(story)) {
-      if (next && onTarget(next.area, at.tile % GRID, Math.floor(at.tile / GRID))) runQuestBuild(next)
-      return
-    }
+    // During the tour the cards open on their own; clicking a landmark does nothing.
+    if (isTourActive(useStoryStore.getState())) return
     openProject(quest.projectId, at)
   }
 
@@ -304,8 +259,7 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
       <mesh geometry={geometry} castShadow receiveShadow>
         <meshLambertMaterial vertexColors flatShading />
       </mesh>
-      {quest.landmark === 'lighthouseTop' && <LighthouseBeam />}
-      {quest.landmark === 'lighthouseBase' && BREATHING_ID && <BaseGlow />}
+      {quest.landmark === 'lighthouse' && <LighthouseBeam />}
       {quest.landmark === 'pondRipples' && <PondRipples />}
       {quest.landmark === 'pondRipples' && <LakeHitArea quest={quest} at={at} />}
       {quest.landmark === 'pondRipples' && SONG_ID && <SongBubble />}

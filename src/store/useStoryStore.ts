@@ -102,7 +102,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       phase: next >= TOUR.length ? 'ending' : 'questing',
     })
     track('landmark_completed', { project: q.projectId, stop: next })
-    const at = placeLandmark(q, get().placed)
+    const at = placeLandmark(q)
     set({ placed: { ...get().placed, [id]: at }, focus: at })
   },
 
@@ -125,7 +125,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     })
     // Place every landmark still missing, in order (the lighthouse top needs its base).
     const placed = { ...get().placed }
-    for (const q of QUESTS) if (!placed[q.id]) placed[q.id] = placeLandmark(q, placed)
+    for (const q of QUESTS) if (!placed[q.id]) placed[q.id] = placeLandmark(q)
     set({ placed })
   },
 
@@ -145,7 +145,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       focus: null,
     })
     const placed: Record<string, Placement> = {}
-    for (const q of TOUR) if (ids.includes(q.id)) placed[q.id] = placeLandmark(q, placed)
+    for (const q of TOUR) if (ids.includes(q.id)) placed[q.id] = placeLandmark(q)
     set({ placed })
   },
 
@@ -158,7 +158,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     // Placing edits the island; that's safe here, as no quest is active in the ending.
     const placed = { ...get().placed }
     const missing = QUESTS.filter((q) => !placed[q.id])
-    for (const q of missing) placed[q.id] = placeLandmark(q, placed)
+    for (const q of missing) placed[q.id] = placeLandmark(q)
     // One update (and no re-entry from the ending director), and the ship sees the pier when it plots its course.
     set({
       built: [...built, ...missing.map((q) => q.id).filter((id) => !built.includes(id))],

@@ -15,13 +15,11 @@ export const CONFIG = {
 /**
  * A small live demo on the project's landmark (and in its card):
  * - `commit`: the lighthouse shows your latest public commit, with `fallback` when GitHub can't be reached.
- * - `breathing`: the lighthouse base glows at the breathing rhythm; the card draws `samples` (JSON in /public).
  * - `song`: clicking the pond plays `audio` (or a built-in jingle when omitted), then shows "Recognized: <song>".
  * - `milestone`: the tree grows from a sapling; the card shows `from → to`.
  */
 export type Demo =
   | { kind: 'commit'; fallback: { repo: string; message: string } }
-  | { kind: 'breathing'; samples: string }
   | { kind: 'song'; song: string; audio?: string }
   | { kind: 'milestone'; from: string; to: string }
 
@@ -62,17 +60,6 @@ export type Contact = {
 }
 
 export const PROJECTS: Project[] = [
-  {
-    id: 'breathing-monitor',
-    title: 'Breathing Monitor',
-    pitch: 'TODO: Embedded breathing monitor built for the senior design project.',
-    result: 'TODO: 98% detection accuracy',
-    details: 'TODO: What it does, what you built, and the result.',
-    stack: ['C', 'Embedded', 'Sensors'],
-    links: { github: 'https://github.com/TODO' },
-    tag: 'Hardware',
-    demo: { kind: 'breathing', samples: '/data/breathing.json' },
-  },
   {
     id: 'gitpulse',
     title: 'GitPulse',

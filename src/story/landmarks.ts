@@ -49,7 +49,7 @@ const groundY = (i: number) => {
  * material there (stones become the lighthouse, and so on), and lock its
  * footprint so it can't be dug away. Mutates the island store.
  */
-export function placeLandmark(q: Quest, placed: Record<string, Placement>): Placement {
+export function placeLandmark(q: Quest): Placement {
   const island = useIslandStore.getState()
   const { height, type, stones, plants } = island
   const area = tilesInArea(q.area)
@@ -59,10 +59,8 @@ export function placeLandmark(q: Quest, placed: Record<string, Placement>): Plac
   const fallback = idx(ax, az)
 
   switch (q.landmark) {
-    case 'lighthouseBase':
-    case 'lighthouseTop': {
-      const base = q.anchorOf ? placed[q.anchorOf] : undefined
-      const tile = base?.tile ?? pick(land, ax, az, (i) => stones[i]) ?? fallback
+    case 'lighthouse': {
+      const tile = pick(land, ax, az, (i) => stones[i]) ?? fallback
       island.claimTiles(area, [tile], { stones: true })
       island.claimTiles([tile], [], { plants: true })
       return { tile, x: centreX(tile), y: groundY(tile), z: centreZ(tile) }
