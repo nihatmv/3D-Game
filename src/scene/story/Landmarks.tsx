@@ -19,7 +19,7 @@ import {
 } from 'three'
 import { useIslandStore } from '../../store/useIslandStore'
 import { isTourActive, useStoryStore } from '../../store/useStoryStore'
-import { PIER_DIR, findPier, type Placement } from '../../story/landmarks'
+import { FALLS_DROP, PIER_DIR, findPier, type Placement } from '../../story/landmarks'
 import { demoOf, playCue, useDemoStore } from '../../story/demos'
 import { HALF } from '../../world/constants'
 import { PROJECTS } from '../../story/projects'
@@ -28,7 +28,7 @@ import { ProjectMedia } from '../../ui/story/ProjectBody'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { tod } from '../timeOfDay'
 import { emit } from '../puffs'
-import { LAMP_R, LAMP_Y, PIER_DECK_Y, PIER_LENGTH, landmarkGeometry } from './landmarkGeometry'
+import { LAMP_R, LAMP_Y, PIER_DECK_Y, PIER_LENGTH, isScenery, landmarkGeometry } from './landmarkGeometry'
 import { setLandmarkHovered } from './landmarkHover'
 
 const BUILD_MS = 900
@@ -136,6 +136,8 @@ const PREVIEW_AT: Record<LandmarkKind, [number, number]> = {
   pondRipples: [0, 0.9],
   pier: [(PIER_DIR * PIER_LENGTH) / 2, PIER_DECK_Y + 0.6],
   bigTree: [0, 2.95],
+  cabin: [0, 1.9],
+  falls: [0, FALLS_DROP + 0.5],
 }
 
 /** A small window over a hovered landmark: the project's picture and name. Clicking the landmark opens the card. */
@@ -232,7 +234,7 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
     // Cue demo: the pond "listens" whenever it's clicked, in the tour too.
     if (quest.landmark === 'pondRipples' && SONG_ID) playCue()
     // During the tour the cards open on their own; clicking a landmark does nothing.
-    if (isTourActive(useStoryStore.getState())) return
+    if (isTourActive(useStoryStore.getState()) || !quest.projectId) return
     openProject(quest.projectId, at)
   }
 
@@ -256,7 +258,8 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
         wake(400)
       }}
     >
-      <mesh geometry={geometry} castShadow receiveShadow>
+      {/* Hidden meshes aren't drawn but still take raycasts (the scenery's click box). */}
+      <mesh geometry={geometry} castShadow receiveShadow visible={!isScenery(quest.landmark)}>
         <meshLambertMaterial vertexColors flatShading />
       </mesh>
       {quest.landmark === 'lighthouse' && <LighthouseBeam />}

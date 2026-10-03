@@ -69,6 +69,9 @@ type IslandState = {
   /** Seeds + shift: clear every plant on a tile. */
   removePlants: (x: number, z: number) => boolean
 
+  /** The forest stop: the decoration trees (DECOR_PLANTS) sprout across the island. Does nothing the second time. */
+  growForest: () => void
+
   /** A landmark takes these tiles: optionally clear stones/plants, and lock `lock` against edits. */
   claimTiles: (clear: number[], lock: number[], what: { stones?: boolean; plants?: boolean }) => void
 }
@@ -83,17 +86,23 @@ for (const d of DECOR_STONES) {
 const initialPonds = new Float32Array(TILE_COUNT)
 computePondLevels(initial.height, initial.type, initialPonds)
 
-/** Decoration plants start fully grown (planted long ago), so nothing animates on load. */
-const initialPlants: Plant[] = DECOR_PLANTS.map((d, k) => ({
+const decorPlant = (d: (typeof DECOR_PLANTS)[number], k: number, plantedAt: number): Plant => ({
   id: k + 1,
   tile: idx(d.x, d.z),
   ox: (hash2(d.x, d.z) - 0.5) * (isTree(d.kind) ? 0.2 : 0.5),
   oz: (hash2(d.z, d.x) - 0.5) * (isTree(d.kind) ? 0.2 : 0.5),
   kind: d.kind,
-  plantedAt: -1e9,
+  plantedAt,
   scale: 0.85 + hash2(k, 3) * 0.3,
   rot: hash2(k, 5) * Math.PI * 2,
-}))
+})
+
+/**
+ * The small decoration plants start fully grown (planted long ago), so nothing
+ * animates on load. The trees are left out: the island starts bare and they
+ * grow with the forest stop (growForest).
+ */
+const initialPlants: Plant[] = DECOR_PLANTS.flatMap((d, k) => (isTree(d.kind) ? [] : [decorPlant(d, k, -1e9)]))
 
 export const useIslandStore = create<IslandState>((set, get) => {
   /** Recompute derived data and notify subscribers after a terrain edit. */
@@ -106,7 +115,8 @@ export const useIslandStore = create<IslandState>((set, get) => {
   const commitStones = () => set({ stoneVersion: get().stoneVersion + 1 })
 
   const commitPlants = () => set({ plantVersion: get().plantVersion + 1 })
-  let nextPlantId = initialPlants.length + 1
+  let nextPlantId = DECOR_PLANTS.length + 1
+  let forestGrown = false
 
   /** Remove every plant on a tile. Returns true if any were removed. */
   const clearPlants = (i: number) => {
@@ -312,6 +322,18 @@ export const useIslandStore = create<IslandState>((set, get) => {
     },
 
     removePlants: (x, z) => !get().locked[idx(x, z)] && clearPlants(idx(x, z)),
+
+    growForest: () => {
+      if (forestGrown) return
+      forestGrown = true
+      const now = performance.now()
+      let n = 0
+      // One after another, so the forest spreads instead of popping up at once.
+      DECOR_PLANTS.forEach((d, k) => {
+        if (isTree(d.kind)) get().plants.push(decorPlant(d, k, now + 150 * n++))
+      })
+      commitPlants()
+    },
 
     claimTiles: (clear, lock, what) => {
       const { stones, type, locked } = get()

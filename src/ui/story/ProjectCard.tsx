@@ -79,7 +79,7 @@ export function ProjectCard() {
             {continueLabel}
           </button>
         ) : (
-          <span className="pf-auto-next">⚡ Sailing on…</span>
+          <span className="pf-auto-next">⚡ Building on…</span>
         )}
       </div>
     </aside>

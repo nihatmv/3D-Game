@@ -104,6 +104,17 @@ export const PROJECTS: Project[] = [
     tag: 'Work',
     demo: { kind: 'milestone', from: 'Intern', to: 'Full-time' },
   },
+  {
+    // Placeholder for the waterfall stop until a fifth project is chosen.
+    id: 'project-five',
+    title: 'TODO: Fifth project',
+    pitch: 'TODO: One line on what it is.',
+    result: 'TODO: One concrete result',
+    details: 'TODO: What it does, what you built, and the result.',
+    stack: ['TODO'],
+    links: {},
+    tag: 'TODO',
+  },
 ]
 
 export const CONTACT: Contact = {

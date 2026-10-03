@@ -1,12 +1,12 @@
 import { create } from 'zustand'
-import { QUESTS, TOUR } from '../story/quests'
+import { QUESTS, TOUR, type LandmarkKind } from '../story/quests'
 import { placeLandmark, type Placement } from '../story/landmarks'
 import { track } from '../analytics'
 import { loadProgress, saveProgress } from '../story/progress'
 import { HOUR_GOLDEN, liveHour } from '../scene/timeOfDay'
 
 export type StoryPhase = 'intro' | 'questing' | 'ending' | 'done'
-export type ShipState = 'arriving' | 'waiting' | 'docking' | 'docked'
+export type ShipState = 'arriving' | 'docked'
 /** A project id, or 'contact' for the final card. */
 export type CardId = string
 
@@ -48,16 +48,16 @@ type StoryState = {
   skipAll: () => void
   /** The HUD's "Build it all": play the remaining stops one by one, hands-free (useTourDirector). */
   buildAll: () => void
-  /** Rebuild saved tour stops on load (progress.ts). Partial: the intro plays, then the next stop. All: the ending. */
+  /** Rebuild saved tour stops on load (progress.ts), on top of the pier. Partial: the intro plays, then the next stop. All: the finished island at sunset with the contact card, no ending replay. */
   restore: (ids: string[]) => void
   /** Open a card; with `at`, the camera flies to that landmark too. */
   openProject: (id: CardId, at?: Placement) => void
   /** Close the card and fly home. In the tour this is "Continue": useTourDirector then shows the next task. */
   closeCard: () => void
   setShipState: (s: ShipState) => void
-  /** The tour is done: build the `auto` landmarks (the pier) and sail in as the sun goes down. */
-  startDocking: () => void
-  /** The ship is tied up: the story is over, show who built the island. */
+  /** The tour is done: the sun goes down and the camera flies to the cabin, where the crew gathers (useEndingDirector). */
+  startSunset: () => void
+  /** The story is over: show who built the island. */
   finishStory: () => void
   setHour: (hour: number) => void
   /** Go back to the visitor's clock, or catch up with it (called every minute). */
@@ -98,10 +98,10 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       lastDone: id,
       questIndex: next,
       building: false,
-      openCard: q.projectId,
+      openCard: q.projectId ?? null,
       phase: next >= TOUR.length ? 'ending' : 'questing',
     })
-    track('landmark_completed', { project: q.projectId, stop: next })
+    track('landmark_completed', { project: q.projectId ?? q.id, stop: next })
     const at = placeLandmark(q)
     set({ placed: { ...get().placed, [id]: at }, focus: at })
   },
@@ -136,15 +136,17 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   restore: (ids) => {
     if (!ids.length) return
     // Story state first: placing landmarks edits the island, which re-runs the quest watcher.
+    const all = ids.length >= TOUR.length
     set({
-      built: ids,
+      built: [...get().built, ...ids],
       questIndex: ids.length,
-      phase: ids.length >= TOUR.length ? 'ending' : 'intro',
+      phase: all ? 'done' : 'intro',
       lastDone: null,
-      openCard: null,
+      openCard: all ? 'contact' : null,
       focus: null,
+      ...(all ? { hour: HOUR_GOLDEN, hourLive: false } : null),
     })
-    const placed: Record<string, Placement> = {}
+    const placed = { ...get().placed }
     for (const q of TOUR) if (ids.includes(q.id)) placed[q.id] = placeLandmark(q)
     set({ placed })
   },
@@ -152,22 +154,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   openProject: (id, at) => set({ openCard: id, focus: at ?? null }),
   closeCard: () => set({ openCard: null, focus: null }),
   setShipState: (shipState) => set({ shipState }),
-  startDocking: () => {
-    const { shipState, built } = get()
-    if (shipState !== 'waiting') return
-    // Placing edits the island; that's safe here, as no quest is active in the ending.
-    const placed = { ...get().placed }
-    const missing = QUESTS.filter((q) => !placed[q.id])
-    for (const q of missing) placed[q.id] = placeLandmark(q)
-    // One update (and no re-entry from the ending director), and the ship sees the pier when it plots its course.
-    set({
-      built: [...built, ...missing.map((q) => q.id).filter((id) => !built.includes(id))],
-      placed,
-      shipState: 'docking',
-      hour: HOUR_GOLDEN,
-      hourSlow: true,
-      hourLive: false,
-    })
+  startSunset: () => {
+    const cabin = QUESTS.find((q) => q.landmark === 'cabin')
+    set({ hour: HOUR_GOLDEN, hourSlow: true, hourLive: false, focus: (cabin && get().placed[cabin.id]) ?? null })
   },
   finishStory: () => {
     set({ phase: 'done', openCard: 'contact', focus: null })
@@ -175,6 +164,13 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   setHour: (hour) => set({ hour, hourSlow: false, hourLive: false }),
   followClock: () => set({ hour: liveHour(), hourSlow: false, hourLive: true }),
 }))
+
+// The pier stands from the start: the ship lands at it before anything else is built.
+{
+  const placed: Record<string, Placement> = {}
+  for (const q of QUESTS) if (q.auto) placed[q.id] = placeLandmark(q)
+  useStoryStore.setState({ built: Object.keys(placed), placed })
+}
 
 // Resume a saved tour before the first render, and save whenever a landmark is built.
 useStoryStore.getState().restore(loadProgress())
@@ -184,6 +180,11 @@ useStoryStore.subscribe((s, prev) => {
 
 // Dev-only handle for debugging from the browser console.
 if (import.meta.env.DEV) (window as unknown as { story: typeof useStoryStore }).story = useStoryStore
+
+/** Whether the landmark of this kind is built (scenery that waits for its tour stop: cabin, falls). */
+export function useBuilt(kind: LandmarkKind): boolean {
+  return useStoryStore((s) => QUESTS.some((q) => q.landmark === kind && s.built.includes(q.id)))
+}
 
 /**
  * The quest the visitor is working on right now, or null (intro, ending, or

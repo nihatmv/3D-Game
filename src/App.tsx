@@ -11,6 +11,7 @@ import { StoryHud } from './ui/story/StoryHud'
 import { Dialogue } from './ui/story/Dialogue'
 import { useQuestWatcher } from './story/useQuestWatcher'
 import { useEndingDirector } from './story/useEndingDirector'
+import { useCrewDirector } from './story/useCrewDirector'
 import { useTourDirector } from './story/useTourDirector'
 
 // Retina screens get at most 1.5x; the monitor lowers this further on slow GPUs.
@@ -23,6 +24,7 @@ export default function App() {
   useQuestWatcher()
   useTourDirector()
   useEndingDirector()
+  useCrewDirector()
 
   return (
     <>

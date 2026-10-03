@@ -13,11 +13,16 @@ import { Ponds } from './Ponds'
 import { StonePath } from './StonePath'
 import { Stones } from './Stones'
 import { Waterfall } from './Waterfall'
+import { Crew } from './story/Crew'
 import { Landmarks } from './story/Landmarks'
 import { QuestGhost } from './story/QuestGhost'
 import { Ship } from './story/Ship'
+import { useBuilt } from '../store/useStoryStore'
 
 export function Scene() {
+  // The island starts bare: the cabin (with its path) and the falls wait for their tour stops.
+  const home = useBuilt('cabin')
+  const falls = useBuilt('falls')
   return (
     <>
       <Lighting />
@@ -32,14 +37,15 @@ export function Scene() {
         <Stones />
         <Ponds />
       </Interaction>
-      <Waterfall />
-      <Cabin />
-      <StonePath />
+      {falls && <Waterfall />}
+      {home && <Cabin />}
+      {home && <StonePath />}
       <Plants />
       <Particles />
       <HoverHighlight />
       <Landmarks />
       <Ship />
+      <Crew />
       <QuestGhost />
     </>
   )

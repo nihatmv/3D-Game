@@ -7,8 +7,9 @@ import {
   IcosahedronGeometry,
   SphereGeometry,
 } from 'three'
-import { PIER_DIR, POND_BRIDGE_ENDS } from '../../story/landmarks'
+import { FALLS_DROP, PIER_DIR, POND_BRIDGE_ENDS } from '../../story/landmarks'
 import { QUESTS, type LandmarkKind } from '../../story/quests'
+import { DECOR_FALLS } from '../../world/decor'
 import type { PlantKind } from '../../world/plantRules'
 import { build, rng, type Part } from '../geomUtil'
 import { makePlantGeometries } from '../plantGeometry'
@@ -270,7 +271,13 @@ const MAKERS: Record<LandmarkKind, () => BufferGeometry> = {
   pondRipples: pond,
   pier,
   bigTree,
+  // Scenery stops draw themselves (Cabin, Waterfall); these are their invisible click boxes.
+  cabin: () => new BoxGeometry(1.7, 1.5, 1.5).translate(0, 0.75, 0),
+  falls: () => new BoxGeometry(DECOR_FALLS.width, FALLS_DROP, 0.8).translate(0, FALLS_DROP / 2, 0.3),
 }
+
+/** Kinds whose landmark mesh is only a click box over scenery drawn elsewhere. */
+export const isScenery = (kind: LandmarkKind) => kind === 'cabin' || kind === 'falls'
 
 const cache = new Map<LandmarkKind, BufferGeometry>()
 

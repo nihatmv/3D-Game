@@ -5,7 +5,6 @@ import { track, trackThenGo } from '../../analytics'
 import { clearProgress } from '../../story/progress'
 import { PORTFOLIO_PATH } from '../../routes'
 import { withVisitor } from '../../visitor'
-import { Hero } from './Hero'
 import { ProjectCard } from './ProjectCard'
 import { TimeOfDay } from './TimeOfDay'
 import './Story.css'
@@ -100,7 +99,6 @@ export function StoryHud() {
         </div>
       )}
 
-      <Hero />
       <ProjectCard />
     </>
   )

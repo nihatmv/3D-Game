@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { CatmullRomCurve3, Group, Vector3 } from 'three'
+import { Group, Vector3 } from 'three'
 import { useStoryStore } from '../../store/useStoryStore'
 import { findPier } from '../../story/landmarks'
 import { QUESTS } from '../../story/quests'
-import { ARRIVE_PATH, ARRIVE_SECONDS, DOCK_SECONDS, dockPath } from '../../story/shipPath'
+import { ARRIVE_PATH, LAND_SECONDS, landingPath } from '../../story/shipPath'
 import { wake } from '../perf'
 import { PIER_LENGTH } from './landmarkGeometry'
 import { makeShipGeometry } from './shipGeometry'
@@ -27,12 +27,9 @@ function swell(x: number, z: number, t: number) {
   )
 }
 
-/** One stretch of sailing: a path, how long it takes, and the state it ends in. */
-type Leg = { path: CatmullRomCurve3; seconds: number; then: 'waiting' | 'docked' }
-
 /**
- * The visitor's ship: sails in along ARRIVE_PATH, bobs at anchor, then docks
- * alongside the pier at the end of the story.
+ * The visitor's ship: sails in and ties up alongside the pier (landingPath),
+ * which stands from the start, then bobs there for the rest of the story.
  * One merged Lambert mesh, no shadow casting, so it never forces a shadow redraw.
  */
 export function Ship() {
@@ -40,7 +37,10 @@ export function Ship() {
   const geometry = useMemo(() => makeShipGeometry(), [])
   useEffect(() => () => geometry.dispose(), [geometry])
   const progress = useRef(0)
-  const leg = useRef<Leg>({ path: ARRIVE_PATH, seconds: ARRIVE_SECONDS, then: 'waiting' })
+  const path = useMemo(() => {
+    const pier = findPier(useStoryStore.getState().placed, QUESTS)
+    return pier ? landingPath(pier.x, pier.z, PIER_LENGTH) : ARRIVE_PATH
+  }, [])
 
   useFrame((state, rawDt) => {
     const g = group.current
@@ -50,23 +50,11 @@ export function Ship() {
     const t = state.clock.elapsedTime
     const story = useStoryStore.getState()
 
-    if (story.shipState === 'docking' && leg.current.then !== 'docked') {
-      const pier = findPier(story.placed, QUESTS)
-      const from = g.position.clone()
-      leg.current = {
-        path: pier ? dockPath(from, pier.x, pier.z, PIER_LENGTH) : new CatmullRomCurve3([from, from.clone().setX(from.x - 0.01)]),
-        seconds: DOCK_SECONDS,
-        then: 'docked',
-      }
-      progress.current = 0
-    }
-    const moving = story.shipState === 'arriving' || story.shipState === 'docking'
-    if (moving) {
-      progress.current = Math.min(1, progress.current + dt / leg.current.seconds)
-      if (progress.current >= 1) story.setShipState(leg.current.then)
+    if (story.shipState === 'arriving') {
+      progress.current = Math.min(1, progress.current + dt / LAND_SECONDS)
+      if (progress.current >= 1) story.setShipState('docked')
       else wake(200)
     }
-    const { path } = leg.current
     const u = easeInOut(progress.current)
     path.getPointAt(u, point)
     path.getTangentAt(Math.min(u, 0.999), tangent)

@@ -4,6 +4,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
+  Group,
   IcosahedronGeometry,
   Mesh,
   MeshLambertMaterial,
@@ -15,11 +16,12 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { HALF, topY } from '../world/constants'
 import { DECOR_CABIN, HIGHLAND, HIGHLAND_X, HIGHLAND_Z } from '../world/decor'
 import { CHIMNEY_TOP, cabinGeometry, cabinLightsGeometry } from './decorGeometry'
-import { isLowPower, requestShadowUpdate } from './perf'
+import { isLowPower, requestShadowUpdate, wake } from './perf'
 import { tod } from './timeOfDay'
 
 /**
- * The old wooden cabin on the highland shelf (DECOR_CABIN). Pure scenery: one
+ * The old wooden cabin on the highland shelf (DECOR_CABIN), mounted once its
+ * tour stop is built (Scene): it rises from the ground, then stands still. One
  * merged mesh, windows and a lantern that glow warm from sunset into the night,
  * and chimney smoke animated in its shader (hidden on slow machines).
  */
@@ -29,6 +31,7 @@ const LEVEL = Number(HIGHLAND[Math.floor(TZ) - HIGHLAND_Z][Math.floor(TX) - HIGH
 const POS: [number, number, number] = [TX - HALF + 0.5, topY(LEVEL), TZ - HALF + 0.5]
 
 const PUFFS = 5
+const RISE_MS = 900
 
 function smokeGeometry(): BufferGeometry {
   const parts: BufferGeometry[] = []
@@ -108,14 +111,20 @@ export function Cabin() {
     [body, lights, smoke, bodyMat, lightMat, smokeMat],
   )
 
-  // The cabin casts a shadow once; it never moves.
-  useEffect(() => requestShadowUpdate(2), [])
-
+  const group = useRef<Group>(null)
+  const start = useRef(performance.now())
   const smokeMesh = useRef<Mesh>(null)
   const lastTod = useRef(-1)
   useFrame((_, dt) => {
+    // Rise out of the ground; the shadow follows until it stands, then never changes.
+    const t = Math.min(1, (performance.now() - start.current) / RISE_MS)
+    if (group.current && group.current.scale.y !== 1) {
+      group.current.scale.set(1, Math.max(0.001, 1 - (1 - t) ** 3), 1)
+      wake(200)
+      requestShadowUpdate()
+    }
     smokeMat.uniforms.uTime.value += dt
-    if (smokeMesh.current) smokeMesh.current.visible = !isLowPower()
+    if (smokeMesh.current) smokeMesh.current.visible = t >= 1 && !isLowPower()
     if (tod.version !== lastTod.current) {
       lastTod.current = tod.version
       const k = tod.glow
@@ -125,7 +134,7 @@ export function Cabin() {
   })
 
   return (
-    <group position={POS} rotation-y={ROT}>
+    <group ref={group} position={POS} rotation-y={ROT} scale-y={0.001}>
       <mesh geometry={body} material={bodyMat} castShadow receiveShadow raycast={() => null} />
       <mesh geometry={lights} material={lightMat} raycast={() => null} />
       <mesh ref={smokeMesh} geometry={smoke} material={smokeMat} renderOrder={4} raycast={() => null} />

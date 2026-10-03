@@ -1,5 +1,6 @@
 import { useIslandStore } from '../store/useIslandStore'
-import { GRID, HALF, SEA_Y, TileType, surfaceY } from '../world/constants'
+import { GRID, HALF, SEA_Y, TileType, surfaceY, topY } from '../world/constants'
+import { DECOR_CABIN, DECOR_FALLS, HIGHLAND, HIGHLAND_X, HIGHLAND_Z } from '../world/decor'
 import { idx } from '../world/grid'
 import { isTree } from '../world/plantRules'
 import { tilesInArea, type Quest } from './quests'
@@ -12,6 +13,12 @@ export const PIER_TILES = 3
 
 /** Which way along x the pier reaches: -1 = west, toward where the ship waits (top-left of the default view). */
 export const PIER_DIR = -1
+
+/** Height level of a highland tile (decor.ts). */
+const highlandLevel = (x: number, z: number) => Number(HIGHLAND[z - HIGHLAND_Z][x - HIGHLAND_X])
+
+/** How far the falls drop, from the lip to the plunge pool's level. */
+export const FALLS_DROP = topY(highlandLevel(DECOR_FALLS.x, DECOR_FALLS.z)) - topY(2)
 
 /** Bank tiles (offsets from the pond quest's centre) where the lake bridge lands, across the lake's narrow middle. */
 export const POND_BRIDGE_ENDS: ReadonlyArray<readonly [number, number]> = [
@@ -122,7 +129,23 @@ export function placeLandmark(q: Quest): Placement {
           if ((dx || dz) && x >= 0 && x < GRID && z >= 0 && z < GRID && isLand(idx(x, z))) grove.push(idx(x, z))
         }
       island.claimTiles(grove, grove, { stones: true, plants: true })
+      // The rest of the forest (the decoration trees) grows with it.
+      island.growForest()
       return { tile, x: centreX(tile), y: groundY(tile), z: centreZ(tile) }
+    }
+
+    // Scenery stops: the cabin and the falls draw themselves (Cabin, Waterfall) on
+    // locked highland tiles, so there is nothing to claim, only a spot to fly to.
+    case 'cabin': {
+      const { x, z } = DECOR_CABIN
+      return { tile: fallback, x: x - HALF + 0.5, y: topY(highlandLevel(Math.floor(x), Math.floor(z))), z: z - HALF + 0.5 }
+    }
+
+    case 'falls': {
+      const { x, z, width } = DECOR_FALLS
+      const pool = useIslandStore.getState().pondLevel[idx(x + 1, z + 1)]
+      // The foot of the falls: the middle of the lip, at the pool's surface.
+      return { tile: fallback, x: x + width / 2 - HALF, y: Number.isNaN(pool) ? topY(2) : pool, z: z + 1 - HALF }
     }
   }
 }
