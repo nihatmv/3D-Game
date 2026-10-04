@@ -24,6 +24,17 @@ export function ProjectMedia({ project }: { project: Project }) {
   )
 }
 
+/** Several screenshots in a row the visitor swipes or scrolls sideways (CSS scroll snap, no script). */
+export function ProjectGallery({ project }: { project: Project }) {
+  return (
+    <div className="pf-gallery" tabIndex={0} aria-label={`${project.title} screenshots`}>
+      {project.gallery?.map((src, k) => (
+        <img key={src} src={src} alt={`${project.title} screenshot ${k + 1}`} loading="lazy" />
+      ))}
+    </div>
+  )
+}
+
 /** The one number a visitor should remember. */
 export function ProjectResult({ project }: { project: Project }) {
   if (!project.result) return null
@@ -50,14 +61,39 @@ export function StackChips({ stack }: { stack: string[] }) {
   )
 }
 
+/** Live products the project covers (e.g. work shipped at a job): a grid of linked screenshots. */
+export function ShippedList({ project }: { project: Project }) {
+  if (!project.shipped?.length) return null
+  return (
+    <ul className="pf-shipped" aria-label="Products shipped">
+      {project.shipped.map((s) => (
+        <li key={s.url}>
+          <a href={s.url} target="_blank" rel="noreferrer">
+            {s.image && <img src={s.image} alt={`${s.name} website`} loading="lazy" />}
+            <b>
+              {s.name} <i aria-hidden>↗</i>
+            </b>
+            {s.note && <span>{s.note}</span>}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function ProjectLinks({ project }: { project: Project }) {
-  const { github, live } = project.links
-  if (!github && !live) return null
+  const { github, live, video } = project.links
+  if (!github && !live && !video) return null
   return (
     <div className="pf-links">
       {live && (
         <a className="pf-link primary" href={live} target="_blank" rel="noreferrer">
           Live demo ↗
+        </a>
+      )}
+      {video && (
+        <a className={`pf-link${live ? '' : ' primary'}`} href={video} target="_blank" rel="noreferrer">
+          ▶ Watch demo
         </a>
       )}
       {github && (

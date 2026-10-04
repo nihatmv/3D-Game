@@ -30,7 +30,7 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
 - `src/world/`: pure grid/terrain/tool logic, no React. `decor.ts` holds hand-placed scenery (`HIGHLAND`, `DECOR_FALLS`, `DECOR_CABIN`, `DECOR_PATH`); its tiles are locked, and decor must stay clear of quest areas and the pier row.
 - `src/store/`: `useIslandStore` (typed arrays + version counters, `window.island` in dev) and `useStoryStore` (the story state machine, `window.story` in dev): `phase` intro → questing → ending → done, `shipState` arriving → docked (it lands at the start), `focus` = landmark the camera flies to while its card is open.
 - `src/story/`: content and story logic.
-  - `projects.ts` is the portfolio content (still TODO placeholders; `project-five` is a stand-in for the falls stop). A project's `demo` ties to a landmark: `commit` → lighthouse, `song` → pond, `milestone` → tree.
+  - `projects.ts` is the portfolio content (real: the lighthouse is the Reddit Scraper, the pond is ShipLog, the forest is SABAH.HUB (its `shipped` list links the live products), the cabin is the Remote Job Globe, the falls is this island itself (`cozy-island`); some `result` lines still want better numbers). A project's `demo` ties to a landmark: `song` → pond (no project uses it now, so the pond's listen/bubble code is dormant), `milestone` → tree.
   - `quests.ts`: ordered quests; `TOUR` is the non-`auto` ones: lighthouse, pond, forest (`tree`), cabin (`home`), falls. The pier is `auto`: placed when the story store loads, before the ship lands. `questIndex` indexes `TOUR`.
   - The island starts bare. Scenery stops (`cabin`, `falls`) have no `clicks`: `Scene` mounts `Cabin`/`StonePath`/`Waterfall` once built (`useBuilt`), and their landmark is an invisible click box (`isScenery`). The decor trees grow with the forest stop (`growForest`).
   - `questBuild.ts` plays a quest's `clicks`; `useTourDirector` auto-advances and runs "⚡ Build it all"; `useEndingDirector` runs the ending once the last card is closed (camera flies to the cabin, where the crew has lined up and celebrates, sunset, then the contact card); `progress.ts` saves tour progress to localStorage; a finished saved tour restores straight to `done` (contact card, crew already at the cabin), without replaying the ending.
@@ -58,7 +58,7 @@ playwright-core with the cached chromium headless shell (pass `executablePath` u
 
 ## Status
 
-Both 5-phase plans are done (base game, then the outreach pass: hero, fly-to cards, demos, `?for=`, OG tags, analytics; its `/portfolio` page was later removed). Plans: `~/.claude/plans/lets-do-something-like-federated-hollerith.md` and `~/.claude/plans/pasted-content-id-7ae0-i-want-mossy-rivest.md`. Waiting on the owner's real content for `projects.ts`.
+Both 5-phase plans are done (base game, then the outreach pass: hero, fly-to cards, demos, `?for=`, OG tags, analytics; its `/portfolio` page was later removed). Plans: `~/.claude/plans/lets-do-something-like-federated-hollerith.md` and `~/.claude/plans/pasted-content-id-7ae0-i-want-mossy-rivest.md`. All five cards in `projects.ts` now have the owner's real content.
 
 In progress: the crew pass (captain + 5 men land and build the island). Phases 1–4 done (ship lands first, bare island, five stops; crew steps off, runs to each site and hammers; ending at the cabin). Next: 5 timing pass to 60–90s, `og.png`.
 

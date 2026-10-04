@@ -462,63 +462,6 @@
   background: #f4efe6;
 }
 
-.pf-demo-kicker {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #8a7360;
-}
-
-.lm-dot {
-  flex-shrink: 0;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #b9a896;
-}
-
-.lm-dot.live {
-  background: #3cbf7a;
-  animation: live-dot 1.6s ease-in-out infinite;
-}
-
-@keyframes live-dot {
-  50% { opacity: 0.35; }
-}
-
-.pf-commit {
-  display: block;
-  color: inherit;
-  text-decoration: none;
-}
-
-.pf-commit-repo {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  color: #2f8f98;
-}
-
-.pf-commit-msg {
-  display: block;
-  margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12.5px;
-  line-height: 1.4;
-  color: #4a3a2c;
-  overflow-wrap: anywhere;
-}
-
-.pf-commit:hover .pf-commit-msg {
-  text-decoration: underline;
-  text-decoration-color: #e9a55a;
-}
-
 .pf-song {
   display: flex;
   flex-wrap: wrap;
@@ -579,6 +522,101 @@
 
 @keyframes nudge {
   50% { transform: translateX(4px); }
+}
+
+.pf-gallery {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  border-radius: 14px;
+}
+
+.pf-gallery::-webkit-scrollbar {
+  display: none;
+}
+
+.pf-gallery:focus-visible {
+  outline: 2px solid #e9a55a;
+  outline-offset: 2px;
+}
+
+/* Narrower than the row, so the next screenshot peeks in. */
+.pf-gallery img {
+  flex: 0 0 88%;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  object-fit: cover;
+  object-position: left top;
+  background: #0b1020;
+  scroll-snap-align: start;
+}
+
+.pf-shipped {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.pf-shipped a {
+  display: block;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 0 8px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #f4efe6;
+  color: #5b4a3a;
+  text-decoration: none;
+}
+
+.pf-shipped a:hover {
+  background: #ecdfcc;
+}
+
+.pf-shipped a:focus-visible {
+  outline: 2px solid #e9a55a;
+  outline-offset: 2px;
+}
+
+.pf-shipped img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  margin-bottom: 7px;
+  object-fit: cover;
+  object-position: top;
+  background: #e9dcc8;
+}
+
+.pf-shipped b,
+.pf-shipped span {
+  display: block;
+  padding: 0 10px;
+}
+
+.pf-shipped b {
+  font-size: 13px;
+  color: #4a3a2c;
+}
+
+.pf-shipped span {
+  margin-top: 1px;
+  color: #8a7360;
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.pf-shipped i {
+  color: #c0803e;
+  font-style: normal;
 }
 
 /* In-world labels (drei Html): no pointer events, so clicks reach the landmark. */
@@ -1017,6 +1055,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pf-card, .story-btn, .dlg, .dlg-body,
-  .lm-label, .lm-preview, .lm-dot.live, .pf-milestone-arrow,
+  .lm-label, .lm-preview, .pf-milestone-arrow,
   .quest-cta, .quest-cta::after { animation: none; transition: none; }
 }
