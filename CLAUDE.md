@@ -45,6 +45,7 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
 - In `completeQuest` / `skipAll`, set story state **before** placing the landmark (placing edits the island and re-runs the quest watcher).
 - Story actions called from store subscribers must guard against re-entry (`startDocking` checks `shipState === 'waiting'`).
 - Keep frame-time clamps loose (`Math.min(dt, 0.25)`).
+- `PerfGovernor` measures the frame rate itself (dpr + `setLowPower`) and counts awake frames only. Don't use drei's `PerformanceMonitor`: it reads the idle 30fps as a slow GPU and hides the eye candy.
 - The camera can't look above ~13° over the horizon, so the sun at dawn/sunset and the moon must stay low and in front of the home view (`RISE_AZ`/`SET_AZ` in `timeOfDay.ts`).
 - Landmarks `stopPropagation` on pointer events so clicks don't fire a tool.
 - Don't add Rolldown manual/vendor chunks: a `three` chunk crashed production. Check `npx vite preview` after any build config change.
