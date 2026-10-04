@@ -78,10 +78,14 @@ function forEachHighland(fn: (x: number, z: number, c: string) => void) {
   })
 }
 
-/** Tiles locked from the start: the highland, its falls and pool, and the stone path, so tools can't break the scenery. */
+/** Tiles locked from the start: the highland, its falls and pool (with the pool's banks), and the stone path, so tools can't break the scenery. */
 export function initialLocked(): Uint8Array {
   const locked = new Uint8Array(TILE_COUNT)
-  forEachHighland((x, z) => (locked[idx(x, z)] = 1))
+  forEachHighland((x, z, c) => {
+    locked[idx(x, z)] = 1
+    // The plunge pool's banks as well (its front ones are base island), so it can't be drained.
+    if (c === '~') for (const [dx, dz] of N8) if (inBounds(x + dx, z + dz)) locked[idx(x + dx, z + dz)] = 1
+  })
   // Every tile the stone path crosses.
   for (let k = 1; k < DECOR_PATH.length; k++) {
     const [ax, az] = DECOR_PATH[k - 1]

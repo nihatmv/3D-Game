@@ -1,12 +1,13 @@
 import { useIslandStore } from '../store/useIslandStore'
-import { HALF, SEA_Y, TileType } from '../world/constants'
+import { HALF, SEA_Y, STEP, TileType } from '../world/constants'
 import { idx, inBounds } from '../world/grid'
+import { isTree } from '../world/plantRules'
 import { groundAt } from '../world/terrainField'
 import { PIER_DIR, type Placement } from './landmarks'
 
 /**
  * The ship's crew: the captain (index 0) and five men who step off at the pier,
- * run to each building site and hammer there (useCrewDirector decides when). Plain mutable state stepped from the scene's frame loop
+ * run to each building site and hammer there (useCrewDirector decides when), and stroll around the finished island. Plain mutable state stepped from the scene's frame loop
  * (scene/story/Crew.tsx), so walking costs no React renders. No per-frame work
  * once everyone stands still: `stepCrew` returns false and the scene stops waking.
  */
@@ -29,6 +30,10 @@ export type Mate = {
   working: boolean
   /** Jumping for joy while he waits to set off. */
   cheering: boolean
+  /** Seconds he stands about before his next stroll (crewWander). */
+  rest: number
+  /** The last places he strolled to (world x/z), so the next stroll goes somewhere new. */
+  been: Array<readonly [number, number]>
   /** 0 = still aboard (hidden), 1 = on the island; eases up as he steps off. */
   shown: number
   /** Walk cycle, for the hop. */
@@ -46,7 +51,7 @@ const TURN = 10
 
 const mate = (): Mate => ({
   x: 0, y: 0, z: 0, heading: 0, path: [], face: 0, delay: 0, speed: WALK,
-  shown: 0, cycle: 0, walking: false, working: false, cheering: false,
+  shown: 0, cycle: 0, walking: false, working: false, cheering: false, rest: 0, been: [],
 })
 export const crew: Mate[] = Array.from({ length: CREW_SIZE }, mate)
 
@@ -147,6 +152,7 @@ export function landCrew(at: Placement, deckY: number, length: number) {
     m.cycle = 0
     m.walking = m.working = m.cheering = false
   })
+  wander = false
   crewVersion++
 }
 
@@ -164,6 +170,7 @@ const CAPTAIN_ARC = (150 * Math.PI) / 180
  */
 export function sendCrewTo(cx: number, cz: number, radius: number, cheer = false) {
   workOn = false
+  wander = false
   crew.forEach((m, k) => {
     const a = k === 0 ? CAPTAIN_ARC : ARC[k - 1]
     let r = radius + (k === 0 ? 0.6 : 0)
@@ -192,6 +199,7 @@ export function sendCrewTo(cx: number, cz: number, radius: number, cheer = false
  */
 export function gatherCrew(spots: ReadonlyArray<Point>, face: number, instant = false) {
   workOn = false
+  wander = false
   crew.forEach((m, k) => {
     if (instant) {
       const [x, z] = spots[k]
@@ -217,6 +225,107 @@ export function crewParty(seconds: number) {
   crewVersion++
 }
 
+/** Things to walk around, as world x/z and a radius: the lighthouse, the grove, the cabin, the falls. */
+export type Obstacle = readonly [x: number, z: number, r: number]
+
+/** Strolling around the finished island (crewWander). */
+let wander = false
+let obstacles: ReadonlyArray<Obstacle> = []
+
+/** How far one stroll goes, and how long they stand about between two. */
+const STROLL_MIN = 2
+const STROLL_MAX = 6
+/** How many past strolls each one remembers, and how far a new one should be from all of them. */
+const BEEN_MAX = 8
+const BEEN_APART = 3
+const REST_MIN = 2
+const REST_MAX = 7
+
+/**
+ * The island is finished: from now on everyone strolls around it on their own,
+ * a few steps at a time with a rest in between, always on dry ground and
+ * around `avoid`. They leave the cabin one after another.
+ */
+export function crewWander(avoid: ReadonlyArray<Obstacle>) {
+  wander = true
+  obstacles = avoid
+  crew.forEach((m, k) => {
+    m.rest = 0.6 + k * 0.5 + Math.random() * 1.5
+    m.been = [[m.x, m.z]]
+  })
+}
+
+/** Tiles a stroll goes around: trees and stone stacks (the visitor may have added some). */
+function blockedTiles(): Set<number> {
+  const { plants, stones } = useIslandStore.getState()
+  const blocked = new Set<number>()
+  for (const p of plants) if (isTree(p.kind)) blocked.add(p.tile)
+  for (let i = 0; i < stones.length; i++) if (stones[i] > 0) blocked.add(i)
+  return blocked
+}
+
+/**
+ * A stroll from `a` to `b` is fine: dry ground all the way (the end too), no
+ * tree, stone or landmark in it, and no cliff to climb. Starting inside an
+ * obstacle's circle is allowed as long as the walk leads out of it.
+ */
+function strollClear(a: Point, b: Point, blocked: Set<number>): boolean {
+  const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.3)
+  let y = footY(a[0], a[1])
+  for (let k = 1; k <= n; k++) {
+    const x = a[0] + ((b[0] - a[0]) * k) / n
+    const z = a[1] + ((b[1] - a[1]) * k) / n
+    if (!isLand(x, z) || blocked.has(idx(Math.floor(x + HALF), Math.floor(z + HALF)))) return false
+    for (const [ox, oz, r] of obstacles) {
+      const d = Math.hypot(x - ox, z - oz)
+      if (d < r && d < Math.hypot(a[0] - ox, a[1] - oz)) return false
+    }
+    const fy = footY(x, z)
+    if (Math.abs(fy - y) > STEP * 1.3) return false
+    y = fy
+  }
+  return true
+}
+
+/**
+ * Pick `m`'s next stroll: a random spot nearby he can walk to, clear of where
+ * the others stand or are heading, and away from the places he has been
+ * lately (the furthest from them, if none of the tries is far enough).
+ */
+function stroll(m: Mate): boolean {
+  const from: Point = [m.x, m.z]
+  const blocked = blockedTiles()
+  // The ground was dug away under him: any dry spot will do, straight out of the water.
+  const stuck = !isLand(m.x, m.z)
+  let best: Point | null = null
+  let bestApart = -1
+  for (let n = 0; n < 14; n++) {
+    const a = Math.random() * Math.PI * 2
+    const d = STROLL_MIN + Math.random() * (STROLL_MAX - STROLL_MIN)
+    const to: Point = [m.x + Math.cos(a) * d, m.z + Math.sin(a) * d]
+    if (!isLand(to[0], to[1])) continue
+    if (!stuck && !strollClear(from, to, blocked)) continue
+    const taken = crew.some((o) => {
+      if (o === m) return false
+      const [ox, oz] = o.path[o.path.length - 1] ?? [o.x, o.z]
+      return Math.hypot(ox - to[0], oz - to[1]) < 0.9
+    })
+    if (taken) continue
+    const apart = Math.min(...m.been.map(([bx, bz]) => Math.hypot(bx - to[0], bz - to[1])))
+    if (apart > bestApart) {
+      best = to
+      bestApart = apart
+    }
+    if (apart >= BEEN_APART) break
+  }
+  if (!best) return false
+  m.path = [best]
+  m.speed = WALK
+  m.been.push(best)
+  if (m.been.length > BEEN_MAX) m.been.shift()
+  return true
+}
+
 /** Start or stop the hammering. Men still on their way join in as they arrive. */
 export function crewWork(on: boolean) {
   workOn = on
@@ -238,7 +347,9 @@ const turnTo = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.cos(b 
 
 /**
  * Advance the crew by `dt` seconds. Returns true while anyone is still waiting
- * to leave, walking or turning (keep rendering), false once all stand still.
+ * to leave, walking or turning (keep rendering at full rate), false once all
+ * stand still. Strolling (crewWander) returns false too: it is happy with the
+ * idle frame rate.
  */
 export function stepCrew(dt: number): boolean {
   let active = false
@@ -265,10 +376,15 @@ export function stepCrew(dt: number): boolean {
       const dz = next[1] - m.z
       const d = Math.hypot(dx, dz)
       const step = m.speed * dt
-      if (d <= step) {
+      if (wander && isLand(m.x, m.z) && !isLand(m.x + (dx / d) * Math.min(d, 0.3), m.z + (dz / d) * Math.min(d, 0.3))) {
+        // The visitor dug water into his way: stop here and pick another stroll.
+        m.path = []
+      } else if (d <= step) {
         m.x = next[0]
         m.z = next[1]
         m.path.shift()
+        // Strolling: stay turned the way he came.
+        if (wander && !m.path.length) m.face = m.heading
       } else {
         m.x += (dx / d) * step
         m.z += (dz / d) * step
@@ -291,6 +407,9 @@ export function stepCrew(dt: number): boolean {
       m.cheering = false
       m.cycle = 0
       busy = true
+    } else if (wander) {
+      m.rest -= dt
+      if (m.rest <= 0) m.rest = stroll(m) ? REST_MIN + Math.random() * (REST_MAX - REST_MIN) : 1
     }
     const turn = turnTo(m.heading, want)
     if (Math.abs(turn) > 0.01) {
@@ -306,5 +425,5 @@ export function stepCrew(dt: number): boolean {
     if (busy) active = true
   }
   if (active) crewVersion++
-  return active
+  return active && !wander
 }

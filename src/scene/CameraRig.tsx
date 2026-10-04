@@ -57,10 +57,10 @@ const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2
 /**
  * Close-up of a landmark from the same angle as `home`, framed so the card
  * doesn't cover it: left of centre on wide screens (card centre-right), high
- * on phones (card as a bottom sheet). The target stays on the controls'
+ * on phones (card as a bottom sheet), centred when no card is open. The target stays on the controls'
  * y = 0.5 plane, so framing moves it sideways or toward the camera.
  */
-function focusPose(at: Placement, home: Pose, camera: PerspectiveCamera, width: number, height: number): Pose {
+function focusPose(at: Placement, home: Pose, camera: PerspectiveCamera, width: number, height: number, card: boolean): Pose {
   const dir = home.pos.clone().sub(home.target).normalize()
   const fwd = new Vector3(-dir.x, 0, -dir.z).normalize()
   const right = new Vector3().crossVectors(fwd, UP).normalize()
@@ -68,7 +68,9 @@ function focusPose(at: Placement, home: Pose, camera: PerspectiveCamera, width: 
   const dist = sheet ? 21 : 17
   const visH = 2 * dist * Math.tan(MathUtils.degToRad(camera.fov / 2))
   const target = new Vector3(at.x, 0.5, at.z)
-  if (sheet) target.addScaledVector(fwd, (-0.2 * visH) / Math.max(0.3, dir.y))
+  if (!card) {
+    // Nothing to make room for (the ending's sunset at the cabin): keep it in the middle.
+  } else if (sheet) target.addScaledVector(fwd, (-0.2 * visH) / Math.max(0.3, dir.y))
   else target.addScaledVector(right, 0.2 * visH * (width / height))
   target.clamp(TARGET_MIN, TARGET_MAX)
   return { pos: target.clone().addScaledVector(dir, dist), target }
@@ -101,7 +103,7 @@ export function CameraRig() {
     // Remember home only when leaving it (not mid-flight, not when hopping between landmarks).
     if (focus && !home.current) home.current = flight.current ? flight.current.to : now
     const to = focus
-      ? focusPose(focus, home.current!, camera as PerspectiveCamera, width, height)
+      ? focusPose(focus, home.current!, camera as PerspectiveCamera, width, height, useStoryStore.getState().openCard !== null)
       : home.current
     if (!focus) home.current = null
     if (!to) return

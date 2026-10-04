@@ -1,7 +1,7 @@
 import { useIslandStore } from '../store/useIslandStore'
 import { GRID, HALF, SEA_Y, TileType, surfaceY, topY } from '../world/constants'
 import { DECOR_CABIN, DECOR_FALLS, HIGHLAND, HIGHLAND_X, HIGHLAND_Z } from '../world/decor'
-import { idx } from '../world/grid'
+import { N8, idx, inBounds } from '../world/grid'
 import { isTree } from '../world/plantRules'
 import { tilesInArea, type Quest } from './quests'
 
@@ -10,6 +10,9 @@ export type Placement = { tile: number; x: number; y: number; z: number }
 
 /** Tiles of open ocean the pier reaches over, beyond its anchor. */
 export const PIER_TILES = 3
+
+/** Rows of sea north of the pier row kept open for the ship: two under the hull, one to spare. */
+const HARBOUR_NORTH = 3
 
 /** Which way along x the pier reaches: -1 = west, toward where the ship waits (top-left of the default view). */
 export const PIER_DIR = -1
@@ -46,6 +49,18 @@ function pick(tiles: number[], cx: number, cz: number, score: (i: number) => num
   return best
 }
 
+/** The tiles touching `tiles` (corners included). */
+function ringAround(tiles: number[]): number[] {
+  const ring = new Set<number>()
+  for (const i of tiles)
+    for (const [dx, dz] of N8) {
+      const x = (i % GRID) + dx
+      const z = Math.floor(i / GRID) + dz
+      if (inBounds(x, z) && !tiles.includes(idx(x, z))) ring.add(idx(x, z))
+    }
+  return [...ring]
+}
+
 const groundY = (i: number) => {
   const { height, type } = useIslandStore.getState()
   return surfaceY(height[i], type[i])
@@ -70,6 +85,8 @@ export function placeLandmark(q: Quest): Placement {
       const tile = pick(land, ax, az, (i) => stones[i]) ?? fallback
       island.claimTiles(area, [tile], { stones: true })
       island.claimTiles([tile], [], { plants: true })
+      // Lock the ground around it too, so the tower keeps a patch of island to stand on.
+      island.claimTiles([], ringAround([tile]), {})
       return { tile, x: centreX(tile), y: groundY(tile), z: centreZ(tile) }
     }
 
@@ -82,6 +99,9 @@ export function placeLandmark(q: Quest): Placement {
       // The bridge's two ends stand on the bank, so lock those too.
       const ends = POND_BRIDGE_ENDS.map(([dx, dz]) => idx(ax + dx, az + dz))
       island.claimTiles([...water, ...ends], [...water, ...ends], { stones: true, plants: true })
+      // Lock the banks as well: washing them away would drain the lake and leave its bridge, pads and reeds in the air.
+      // Diagonal ones too, or the square water tiles poke out past the rounded corner the bank leaves behind.
+      island.claimTiles([], ringAround(water), {})
       const { pondLevel } = useIslandStore.getState()
       const tile = water[0]
       const y = Number.isNaN(pondLevel[tile]) ? groundY(tile) : pondLevel[tile]
@@ -107,6 +127,12 @@ export function placeLandmark(q: Quest): Placement {
         if (x >= 0 && x < GRID) over.push(idx(x, az))
       }
       island.claimTiles([tile, ...over], [tile, ...over], { stones: true, plants: true })
+      // Lock the harbour too: the water the ship lies in (north of the deck, see ALONGSIDE in shipPath.ts) with a row
+      // to spare on each side, out to the edge of the map, so it can't be filled in or walled off from the sea.
+      const harbour: number[] = []
+      for (let z = az - HARBOUR_NORTH; z <= az + 1; z++)
+        for (let x = ex + PIER_DIR; x >= 0 && x < GRID; x += PIER_DIR) if (inBounds(x, z)) harbour.push(idx(x, z))
+      island.claimTiles([], harbour, {})
       // The deck starts at the tile's seaward edge.
       return { tile, x: centreX(tile) + PIER_DIR * 0.5, y: SEA_Y, z: centreZ(tile) }
     }

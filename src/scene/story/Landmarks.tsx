@@ -252,7 +252,9 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
         setLandmarkHovered(true)
         wake(400)
       }}
-      onPointerOut={() => {
+      onPointerOut={(e) => {
+        // Fires per child mesh: ignore it while the pointer is still on another part of this landmark.
+        if (e.intersections.some((hit) => hit.eventObject === e.eventObject)) return
         setHovered(false)
         setLandmarkHovered(false)
         wake(400)
