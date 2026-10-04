@@ -91,9 +91,9 @@ const plantsInArea = (s: IslandSnapshot, a: Area, pred: (kind: PlantKind) => boo
 export const QUESTS: Quest[] = [
   {
     id: 'lighthouse',
-    projectId: 'gitpulse',
+    projectId: 'reddit-scraper',
     dialogue: 'Rocky waters out here. Let’s raise a lighthouse and light the lamp!',
-    doneLine: 'There it is, a beam across the water. Signals sent and received!',
+    doneLine: 'There it is, a beam sweeping the water. It picks out what matters!',
     tool: 'stone',
     area: { x: 13, z: 13, r: 1.5 },
     condition: (s, a) => sumInArea(a, (i) => s.stones[i]) >= 3,
@@ -102,9 +102,9 @@ export const QUESTS: Quest[] = [
   },
   {
     id: 'pond',
-    projectId: 'cue',
+    projectId: 'shiplog',
     dialogue: 'Our water barrels are dry. A pond, please!',
-    doneLine: 'Listen to those ripples. Waves turn into a signal.',
+    doneLine: 'See those ripples? Every splash sends word across the water.',
     tool: 'water',
     area: { x: 17, z: 15, r: 1.5 },
     // The clicks are the lake's shape: six tiles in a band running across the default view.
@@ -149,9 +149,9 @@ export const QUESTS: Quest[] = [
   },
   {
     id: 'falls',
-    projectId: 'project-five',
+    projectId: 'cozy-island',
     dialogue: 'Last one: free the spring and let the river fall!',
-    doneLine: 'Hear that roar? The island is alive.',
+    doneLine: 'Hear that roar? The island is alive, and every bit of it is code.',
     tool: 'water',
     // On the plunge pool under the falls (DECOR_FALLS).
     area: { x: 19, z: 11, r: 1 },

@@ -2,7 +2,7 @@ import { useStoryStore } from '../../store/useStoryStore'
 import { CONTACT, EDUCATION, projectById } from '../../story/projects'
 import { QUESTS } from '../../story/quests'
 import { PirateAvatar } from './PirateAvatar'
-import { ContactLinks, CvLink, Portrait, ProjectLinks, ProjectMedia, ProjectResult, StackChips } from './ProjectBody'
+import { ContactLinks, CvLink, Portrait, ProjectGallery, ProjectLinks, ProjectMedia, ProjectResult, ShippedList, StackChips } from './ProjectBody'
 import { ProjectDemo } from './ProjectDemo'
 
 /**
@@ -64,7 +64,13 @@ export function ProjectCard() {
           <p>{done.doneLine}</p>
         </div>
       )}
-      <ProjectMedia project={project} />
+      {project.shipped?.length ? (
+        <ShippedList project={project} />
+      ) : project.gallery?.length ? (
+        <ProjectGallery project={project} />
+      ) : (
+        <ProjectMedia project={project} />
+      )}
       {project.tag && <div className="pf-eyebrow">{project.tag}</div>}
       <h2>{project.title}</h2>
       <p className="pf-pitch">{project.pitch}</p>

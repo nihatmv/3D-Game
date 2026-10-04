@@ -1,38 +1,23 @@
 import { create } from 'zustand'
-import { CONFIG, PROJECTS, type Demo } from './projects'
-import { latestCommit, type Commit } from './githubCommit'
+import { PROJECTS, type Demo } from './projects'
 
 /**
  * State for the landmark mini demos (see `Demo` in projects.ts), shared by the
- * scene (lighthouse label, pond bubble) and the cards. No per-frame work here.
+ * scene (pond bubble) and the cards. No per-frame work here.
  */
 
 export type CueState = 'idle' | 'listening' | 'recognized'
 
 type DemoState = {
-  /** null until loaded; the fallback from projects.ts if GitHub can't be reached. */
-  commit: Commit | null
   cue: CueState
 }
 
-export const useDemoStore = create<DemoState>(() => ({ commit: null, cue: 'idle' }))
+export const useDemoStore = create<DemoState>(() => ({ cue: 'idle' }))
 
 /** The first project's demo of a kind (each landmark shows one). */
 export function demoOf<K extends Demo['kind']>(kind: K): { projectId: string; demo: Extract<Demo, { kind: K }> } | null {
   for (const p of PROJECTS) if (p.demo?.kind === kind) return { projectId: p.id, demo: p.demo as Extract<Demo, { kind: K }> }
   return null
-}
-
-let commitRequested = false
-
-/** Fetch the latest commit once (cached by githubCommit.ts), falling back to the data file. */
-export function loadCommit() {
-  if (commitRequested) return
-  commitRequested = true
-  const fallback = demoOf('commit')?.demo.fallback
-  latestCommit(CONFIG.githubUser).then((c) => {
-    useDemoStore.setState({ commit: c ?? (fallback ? { ...fallback, live: false } : null) })
-  })
 }
 
 /** How long the "Recognized" bubble stays over the pond. */
