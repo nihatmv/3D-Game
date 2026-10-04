@@ -7,11 +7,11 @@ import { PirateAvatar } from './PirateAvatar'
 import { bindShipBubble } from './shipBubble'
 
 const GREETING = VISITOR ? `Ahoy, ${VISITOR} crew!` : 'Ahoy!'
-const INTRO = `${GREETING} Help us make this island safe to dock. Every landmark you raise shows a piece of its builder’s work.`
+const INTRO = `${GREETING} We’ve landed on a bare island. Show us where to build: every landmark you raise shows a piece of its builder’s work.`
 
 const WELCOME_BACK = `${VISITOR ? `Welcome back, ${VISITOR} crew!` : 'Welcome back!'} Your landmarks are still standing. Let’s pick up where we left off.`
 
-const DOCKING = 'Everything’s ready, and look at that sky! Bringing her in to dock...'
+const SUNSET = 'The island is finished, and look at that sky!'
 
 /** Screens with room beside the ship for the speech bubble; smaller ones keep it above the toolbar. */
 const BESIDE_SHIP = '(min-width: 900px) and (min-height: 501px)'
@@ -28,7 +28,7 @@ function useBesideShip() {
 }
 
 /**
- * The captain's speech: intro, current task, praise and docking (silent once docked;
+ * The captain's speech: intro, current task, praise and the sunset (silent after;
  * the HUD's Get in touch takes over). The intro and the
  * praise move on by themselves (useTourDirector); tasks are one click on the glow.
  * `ship` floats beside the ship (wide screens); `toolbar` sits above the tools (phones).
@@ -55,7 +55,7 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   if (cardOpen) {
     return null
   } else if (phase === 'intro') {
-    // Wait until the ship is anchored before the captain speaks.
+    // Wait until the ship has landed before the captain speaks.
     if (shipState === 'arriving') return null
     line = questIndex > 0 ? WELCOME_BACK : INTRO
     key = 'intro'
@@ -79,8 +79,8 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
       </>
     )
   } else if (phase === 'ending') {
-    line = DOCKING
-    key = 'docking'
+    line = SUNSET
+    key = 'sunset'
     actions = null
   } else {
     return null

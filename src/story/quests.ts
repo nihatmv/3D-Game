@@ -1,4 +1,4 @@
-import { MAX_STONE, TILE_COUNT, TileType } from '../world/constants'
+import { TILE_COUNT, TileType } from '../world/constants'
 import { idx, inBounds, initialIsland } from '../world/grid'
 import { isTree, type PlantKind } from '../world/plantRules'
 import type { Tool } from '../store/useIslandStore'
@@ -6,10 +6,10 @@ import type { Tool } from '../store/useIslandStore'
 /**
  * The captain's tasks, in order. Each one is pure data plus a condition that
  * reads the island state, so adding or reordering quests never touches game code.
- * Tour stops are one click each (`clicks`); `auto` quests are built in the ending.
+ * Tour stops are one click each (`clicks`); `auto` quests are there from the start.
  */
 
-export type LandmarkKind = 'lighthouseBase' | 'lighthouseTop' | 'pondRipples' | 'pier' | 'bigTree'
+export type LandmarkKind = 'lighthouse' | 'pondRipples' | 'pier' | 'bigTree' | 'cabin' | 'falls'
 
 /** Tile-space circle: centre tile and radius in tiles. */
 export type Area = { x: number; z: number; r: number }
@@ -23,8 +23,8 @@ export type IslandSnapshot = {
 
 export type Quest = {
   id: string
-  /** Project unlocked by this quest (see projects.ts). */
-  projectId: string
+  /** Project unlocked by this quest (see projects.ts); none for the pier. */
+  projectId?: string
   /** The captain's instruction. */
   dialogue: string
   /** What the captain says once it's built. */
@@ -35,15 +35,14 @@ export type Quest = {
   /**
    * What one click on the glowing target does: the quest's tool is applied
    * on these tiles (offsets from the area centre), one after another.
+   * Empty for scenery stops (cabin, falls): the click just raises the scenery.
    */
   clicks: ReadonlyArray<readonly [number, number]>
   /** Gap between those clicks (default 200ms); shorter for long click lists. */
   stepMs?: number
   landmark: LandmarkKind
-  /** Not a tour stop: built automatically when the ship comes in to dock. */
+  /** Not a tour stop: already standing when the ship comes in (the pier it lands at). */
   auto?: boolean
-  /** Build on the same tile as an earlier quest's landmark. */
-  anchorOf?: string
 }
 
 /** Tiles inside the area's circle. */
@@ -91,28 +90,15 @@ const plantsInArea = (s: IslandSnapshot, a: Area, pred: (kind: PlantKind) => boo
 
 export const QUESTS: Quest[] = [
   {
-    id: 'lighthouse-base',
-    projectId: 'breathing-monitor',
-    dialogue: 'Rocky waters out here. Let’s lay a stone base for a lighthouse.',
-    doneLine: 'A solid foundation! Every good thing starts with the hardware.',
+    id: 'lighthouse',
+    projectId: 'gitpulse',
+    dialogue: 'Rocky waters out here. Let’s raise a lighthouse and light the lamp!',
+    doneLine: 'There it is, a beam across the water. Signals sent and received!',
     tool: 'stone',
     area: { x: 13, z: 13, r: 1.5 },
     condition: (s, a) => sumInArea(a, (i) => s.stones[i]) >= 3,
     clicks: [[0, 0], [1, 0], [0, 1]],
-    landmark: 'lighthouseBase',
-  },
-  {
-    id: 'lighthouse-top',
-    projectId: 'gitpulse',
-    dialogue: 'Now raise the tower, and we’ll light the lamp!',
-    doneLine: 'There it is, a beam across the water. Signals sent and received!',
-    tool: 'stone',
-    area: { x: 13, z: 13, r: 1.5 },
-    condition: (s, a) => countInArea(a, (i) => s.stones[i] >= MAX_STONE) >= 1,
-    // The base's tile is locked, so the tower goes up next to it.
-    clicks: Array.from({ length: MAX_STONE }, () => [1, 0] as const),
-    landmark: 'lighthouseTop',
-    anchorOf: 'lighthouse-base',
+    landmark: 'lighthouse',
   },
   {
     id: 'pond',
@@ -129,12 +115,11 @@ export const QUESTS: Quest[] = [
   },
   {
     id: 'pier',
-    projectId: 'remote-job-globe',
-    dialogue: 'We can’t reach the shore from here. Raise some land out toward the ship!',
-    doneLine: 'The island reaches out to the world. Nearly close enough to dock!',
+    dialogue: '',
+    doneLine: '',
     tool: 'soil',
     area: { x: 6, z: 16, r: 1.5 },
-    condition: (s, a) => countInArea(a, (i) => wasOcean[i] === 1 && s.height[i] > 0) >= 3,
+    condition: () => false,
     clicks: [],
     landmark: 'pier',
     auto: true,
@@ -142,13 +127,37 @@ export const QUESTS: Quest[] = [
   {
     id: 'tree',
     projectId: 'sabah-hub',
-    dialogue: 'Last one: a bit of shade would be lovely.',
-    doneLine: 'From a tiny seed to a full tree. That’s real growth.',
+    dialogue: 'This shore is bare. Let’s plant a forest!',
+    doneLine: 'From a tiny seed to a full forest. That’s real growth.',
     tool: 'seeds',
     area: { x: 14, z: 18, r: 1.5 },
     condition: (s, a) => plantsInArea(s, a, () => true) >= 3 || plantsInArea(s, a, isTree) >= 1,
     clicks: [[0, 0], [0, 0], [0, 0]],
     landmark: 'bigTree',
+  },
+  {
+    id: 'home',
+    projectId: 'remote-job-globe',
+    dialogue: 'The crew needs a roof. A cabin, up on the hill!',
+    doneLine: 'Smoke from the chimney already. Feels like home.',
+    tool: 'stone',
+    // On the cabin's shelf (DECOR_CABIN); r = 1 keeps the ring on one level.
+    area: { x: 21, z: 7, r: 1 },
+    condition: () => false,
+    clicks: [],
+    landmark: 'cabin',
+  },
+  {
+    id: 'falls',
+    projectId: 'project-five',
+    dialogue: 'Last one: free the spring and let the river fall!',
+    doneLine: 'Hear that roar? The island is alive.',
+    tool: 'water',
+    // On the plunge pool under the falls (DECOR_FALLS).
+    area: { x: 19, z: 11, r: 1 },
+    condition: () => false,
+    clicks: [],
+    landmark: 'falls',
   },
 ]
 

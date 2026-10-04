@@ -14,7 +14,7 @@ const AUTO_SPEED = 1.5
 
 /**
  * Keeps the tour moving without "Next" buttons: the intro starts the first
- * task once the ship is anchored. After a landmark, its card's Continue
+ * task once the ship has landed. After a landmark, its card's Continue
  * (closeCard) flies the camera home, then the next task appears.
  * In "Build it all" (`autoBuild`) it also starts each stop's build and
  * closes each card by itself, so the remaining stops play one by one.
@@ -38,7 +38,7 @@ export function useTourDirector() {
       if (s.autoBuild && s.phase === 'intro') schedule('auto-intro', 0, s.startQuests)
       else if (s.autoBuild && s.lastDone && s.openCard) schedule(`auto-card-${s.lastDone}`, AUTO_CARD_MS, s.closeCard)
       else if (auto && !s.building) schedule(`auto-build-${auto.id}`, AUTO_START_MS, () => runQuestBuild(auto, AUTO_SPEED))
-      else if (s.phase === 'intro' && s.shipState === 'waiting') schedule('intro', INTRO_MS, s.startQuests)
+      else if (s.phase === 'intro' && s.shipState === 'docked') schedule('intro', INTRO_MS, s.startQuests)
       else if (s.lastDone && !s.openCard) schedule(`done-${s.lastDone}`, FLY_MS, s.clearLastDone)
       else schedule(null, 0, () => {})
     }

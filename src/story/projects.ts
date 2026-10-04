@@ -1,7 +1,6 @@
 /**
  * Portfolio content. This is the only file to edit when projects change:
- * quests point at projects by `id`, and every UI panel (the island cards and
- * the /portfolio page) reads from here.
+ * quests point at projects by `id`, and every island card reads from here.
  *
  * TODO: replace the placeholder text, links and media with the real content.
  */
@@ -15,13 +14,11 @@ export const CONFIG = {
 /**
  * A small live demo on the project's landmark (and in its card):
  * - `commit`: the lighthouse shows your latest public commit, with `fallback` when GitHub can't be reached.
- * - `breathing`: the lighthouse base glows at the breathing rhythm; the card draws `samples` (JSON in /public).
  * - `song`: clicking the pond plays `audio` (or a built-in jingle when omitted), then shows "Recognized: <song>".
  * - `milestone`: the tree grows from a sapling; the card shows `from → to`.
  */
 export type Demo =
   | { kind: 'commit'; fallback: { repo: string; message: string } }
-  | { kind: 'breathing'; samples: string }
   | { kind: 'song'; song: string; audio?: string }
   | { kind: 'milestone'; from: string; to: string }
 
@@ -62,17 +59,6 @@ export type Contact = {
 }
 
 export const PROJECTS: Project[] = [
-  {
-    id: 'breathing-monitor',
-    title: 'Breathing Monitor',
-    pitch: 'TODO: Embedded breathing monitor built for the senior design project.',
-    result: 'TODO: 98% detection accuracy',
-    details: 'TODO: What it does, what you built, and the result.',
-    stack: ['C', 'Embedded', 'Sensors'],
-    links: { github: 'https://github.com/TODO' },
-    tag: 'Hardware',
-    demo: { kind: 'breathing', samples: '/data/breathing.json' },
-  },
   {
     id: 'gitpulse',
     title: 'GitPulse',
@@ -117,6 +103,17 @@ export const PROJECTS: Project[] = [
     tag: 'Work',
     demo: { kind: 'milestone', from: 'Intern', to: 'Full-time' },
   },
+  {
+    // Placeholder for the waterfall stop until a fifth project is chosen.
+    id: 'project-five',
+    title: 'TODO: Fifth project',
+    pitch: 'TODO: One line on what it is.',
+    result: 'TODO: One concrete result',
+    details: 'TODO: What it does, what you built, and the result.',
+    stack: ['TODO'],
+    links: {},
+    tag: 'TODO',
+  },
 ]
 
 export const CONTACT: Contact = {
@@ -131,34 +128,9 @@ export const CONTACT: Contact = {
   photo: '/photo.jpg',
 }
 
-export type Experience = {
-  role: string
-  org: string
-  /** e.g. '2024 – now'. */
-  when: string
-  /** One or two lines on what you did and the result. */
-  summary: string
-}
-
-/** Newest first. Shown on the /portfolio page. */
-export const EXPERIENCE: Experience[] = [
-  {
-    role: 'Front-End Developer',
-    org: 'SABAH.HUB',
-    when: 'TODO 2025 – now',
-    summary: 'TODO: Joined as an intern, went full-time. What you own and one result.',
-  },
-  {
-    role: 'Front-End Developer Intern',
-    org: 'SABAH.HUB',
-    when: 'TODO 2024 – 2025',
-    summary: 'TODO: What you built as an intern.',
-  },
-]
-
 export type Education = { degree: string; school: string; when: string; note?: string }
 
-/** Newest first. The first entry also appears on the contact card. */
+/** Newest first. The first entry appears on the contact card. */
 export const EDUCATION: Education[] = [
   {
     degree: 'B.Sc. Computer Engineering',

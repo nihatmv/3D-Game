@@ -47,18 +47,3 @@ export function track(event: AnalyticsEvent, props: Props = {}, done: () => void
     done()
   }
 }
-
-/**
- * For same-tab links: send the event, then navigate (at most `wait` ms later),
- * so the page change doesn't cancel the request.
- */
-export function trackThenGo(event: AnalyticsEvent, href: string, props: Props = {}, wait = 300) {
-  let gone = false
-  const go = () => {
-    if (gone) return
-    gone = true
-    window.location.href = href
-  }
-  setTimeout(go, wait)
-  track(event, props, go)
-}

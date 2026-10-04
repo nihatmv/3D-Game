@@ -7,18 +7,15 @@ import { latestCommit, type Commit } from './githubCommit'
  * scene (lighthouse label, pond bubble) and the cards. No per-frame work here.
  */
 
-/** Samples scaled to 0..1; `seconds` is how long the whole file lasts (for the card's scroll speed). */
-type Breathing = { samples: number[]; bpm: number; seconds: number }
 export type CueState = 'idle' | 'listening' | 'recognized'
 
 type DemoState = {
   /** null until loaded; the fallback from projects.ts if GitHub can't be reached. */
   commit: Commit | null
-  breathing: Breathing | null
   cue: CueState
 }
 
-export const useDemoStore = create<DemoState>(() => ({ commit: null, breathing: null, cue: 'idle' }))
+export const useDemoStore = create<DemoState>(() => ({ commit: null, cue: 'idle' }))
 
 /** The first project's demo of a kind (each landmark shows one). */
 export function demoOf<K extends Demo['kind']>(kind: K): { projectId: string; demo: Extract<Demo, { kind: K }> } | null {
@@ -37,36 +34,6 @@ export function loadCommit() {
     useDemoStore.setState({ commit: c ?? (fallback ? { ...fallback, live: false } : null) })
   })
 }
-
-/** Default breathing rate when the sample file doesn't say. */
-const DEFAULT_BPM = 15
-let breathingRequested = false
-
-/** Load the breathing samples once and scale them to 0..1. */
-export function loadBreathing() {
-  const d = demoOf('breathing')?.demo
-  if (!d || breathingRequested) return
-  breathingRequested = true
-  fetch(d.samples)
-    .then((r) => (r.ok ? r.json() : null))
-    .then((j: { samples?: number[]; breathsPerMinute?: number; sampleRateHz?: number } | null) => {
-      const raw = j?.samples?.filter((v) => Number.isFinite(v)) ?? []
-      if (raw.length < 2) return
-      const lo = Math.min(...raw)
-      const span = Math.max(...raw) - lo || 1
-      useDemoStore.setState({
-        breathing: {
-          samples: raw.map((v) => (v - lo) / span),
-          bpm: j?.breathsPerMinute ?? DEFAULT_BPM,
-          seconds: raw.length / (j?.sampleRateHz ?? 10),
-        },
-      })
-    })
-    .catch(() => {})
-}
-
-/** Breaths per minute for the lighthouse glow (the default until the file loads). */
-export const breathingBpm = () => useDemoStore.getState().breathing?.bpm ?? DEFAULT_BPM
 
 /** How long the "Recognized" bubble stays over the pond. */
 const BUBBLE_MS = 5000

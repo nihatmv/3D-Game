@@ -1,11 +1,8 @@
 import { useEffect } from 'react'
 import { useStoryStore } from '../../store/useStoryStore'
 import { TOUR } from '../../story/quests'
-import { track, trackThenGo } from '../../analytics'
+import { track } from '../../analytics'
 import { clearProgress } from '../../story/progress'
-import { PORTFOLIO_PATH } from '../../routes'
-import { withVisitor } from '../../visitor'
-import { Hero } from './Hero'
 import { ProjectCard } from './ProjectCard'
 import { TimeOfDay } from './TimeOfDay'
 import './Story.css'
@@ -21,9 +18,7 @@ function useEscToClose() {
   }, [])
 }
 
-const portfolioHref = withVisitor(PORTFOLIO_PATH)
-
-/** Progress counter, the always-on Portfolio link, the time-of-day timeline, the skip link (Get in touch once docked) and the overlays. Both links open the plain page. */
+/** Progress counter, the time-of-day timeline, Build it all and Skip (Get in touch once the tour is over) and the overlays. Skip builds the whole island at once. */
 export function StoryHud() {
   useEscToClose()
   const built = useStoryStore((s) => s.built)
@@ -45,9 +40,6 @@ export function StoryHud() {
             {stops} / {TOUR.length} landmarks
           </span>
         </div>
-        <a className="story-btn" href={portfolioHref}>
-          📜 Portfolio
-        </a>
         {stops > 0 && (
           <button
             className="story-btn story-restart"
@@ -85,22 +77,20 @@ export function StoryHud() {
           >
             {autoBuild ? '⚡ Building…' : '⚡ Build it all'}
           </button>
-          <a
+          <button
             className="story-btn"
-            href={portfolioHref}
-            onClick={(e) => {
-              e.preventDefault()
-              trackThenGo('skip_clicked', portfolioHref)
+            onClick={() => {
+              track('skip_clicked')
+              useStoryStore.getState().skipAll()
             }}
           >
             <span>
               Skip<span className="story-long">, just show me everything</span> →
             </span>
-          </a>
+          </button>
         </div>
       )}
 
-      <Hero />
       <ProjectCard />
     </>
   )
