@@ -23,8 +23,10 @@ export function ScrollTrack() {
 
   useLayoutEffect(() => {
     history.scrollRestoration = 'manual'
-    // A returning visitor's ship is already tied up.
-    jumpScroll(useStoryStore.getState().questIndex > 0 ? segmentOf('sail').to : 0)
+    // A returning visitor picks up at the card of the last stop they built (at the end, if that was all of them).
+    const { questIndex, phase } = useStoryStore.getState()
+    const card = questIndex > 0 ? segmentOf('card', questIndex - 1) : null
+    jumpScroll(phase === 'done' ? 1 : card ? (card.from + card.to) / 2 : 0)
     return watchScroll()
   }, [])
 

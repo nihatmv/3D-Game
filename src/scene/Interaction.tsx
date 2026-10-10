@@ -2,9 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { useIslandStore, type TileCoord } from '../store/useIslandStore'
-import { isTourActive, selectActiveQuest, useStoryStore } from '../store/useStoryStore'
-import { runQuestBuild } from '../story/questBuild'
-import { onTarget } from '../story/quests'
+import { isTourActive, useStoryStore } from '../store/useStoryStore'
 import { GRID, HALF } from '../world/constants'
 import { idx, inBounds } from '../world/grid'
 import { applyTool } from './applyTool'
@@ -98,14 +96,9 @@ export function Interaction({ children }: { children: ReactNode }) {
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    if (e.button !== 0 || useStoryStore.getState().focus) return
+    // During the tour the scroll does the building.
+    if (e.button !== 0 || useStoryStore.getState().focus || isTourActive()) return
     const t = tileFromEvent(e)
-    // During the tour only the glowing quest target builds (also when its own stones hide the ring).
-    if (isTourActive()) {
-      const q = selectActiveQuest(useStoryStore.getState())
-      if (q && t && onTarget(q.area, t.x, t.z)) runQuestBuild(q)
-      return
-    }
     if (e.pointerType === 'touch') {
       if (touches.current.size > 1 || !t) return
       tap.current = { id: e.pointerId, x: e.clientX, y: e.clientY, tile: t, point: e.point.clone() }

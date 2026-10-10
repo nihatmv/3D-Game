@@ -24,17 +24,13 @@ import { demoOf, playCue, useDemoStore } from '../../story/demos'
 import { HALF } from '../../world/constants'
 import { PROJECTS } from '../../story/projects'
 import { QUESTS, type LandmarkKind, type Quest } from '../../story/quests'
+import { riseOf } from '../../story/scrollDirector'
 import { ProjectMedia } from '../../ui/story/ProjectBody'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { tod } from '../timeOfDay'
 import { emit } from '../puffs'
 import { LAMP_R, LAMP_Y, PIER_DECK_Y, PIER_LENGTH, isScenery, landmarkGeometry } from './landmarkGeometry'
 import { setLandmarkHovered } from './landmarkHover'
-
-const BUILD_MS = 900
-/** The tree grows from a sapling, more slowly than the other landmarks pop up, mostly after the camera lands. */
-const TREE_GROW_MS = 2000
-const TREE_DELAY_MS = 400
 
 const SONG_ID = demoOf('song')?.projectId
 
@@ -183,11 +179,11 @@ function LakeHitArea({ quest, at }: { quest: Quest; at: Placement }) {
 
 function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
   const group = useRef<Group>(null)
-  const start = useRef(performance.now())
+  const risen = useRef(-1)
   const geometry = landmarkGeometry(quest.landmark)
   const openProject = useStoryStore((s) => s.openProject)
   const [hovered, setHovered] = useState(false)
-  // Outside the tour only: there a click builds instead of opening a card.
+  // Outside the tour only: there the cards come with the scroll.
   const canPreview = useStoryStore((s) => s.openCard === null && !isTourActive(s))
 
   // Celebrate: sparkles where it rises (along the deck for the pier).
@@ -201,26 +197,20 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
     requestShadowUpdate()
   }, [quest.landmark, at])
 
+  // It rises with the scroll (and sinks back with it); nothing to do while the scroll rests.
   useFrame(() => {
     const g = group.current
-    if (!g) return
-    if (quest.landmark === 'bigTree') {
+    const t = riseOf(quest.id)
+    if (!g || t === risen.current) return
+    risen.current = t
+    if (quest.landmark === 'bigTree' && t < 1) {
       // Sapling to full tree: shoots up first, then fills out.
-      const t = Math.max(0, Math.min(1, (performance.now() - start.current - TREE_DELAY_MS) / TREE_GROW_MS))
-      if (t < 1) {
-        const xz = 0.25 + 0.75 * (1 - (1 - t) ** 3)
-        g.scale.set(xz, 0.12 + 0.88 * popCurve(t * t), xz)
-        wake(200)
-        requestShadowUpdate()
-        return
-      }
+      const xz = 0.25 + 0.75 * (1 - (1 - t) ** 3)
+      g.scale.set(xz, 0.12 + 0.88 * popCurve(t * t), xz)
+    } else {
+      g.scale.setScalar(Math.max(0.001, t < 1 ? popCurve(t) : 1))
     }
-    const t = Math.min(1, (performance.now() - start.current) / BUILD_MS)
-    g.scale.setScalar(Math.max(0.001, t < 1 ? popCurve(t) : 1))
-    if (t < 1) {
-      wake(200)
-      requestShadowUpdate()
-    }
+    requestShadowUpdate()
   })
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => e.stopPropagation()
@@ -233,7 +223,7 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
     if (e.button !== 0) return
     // Cue demo: the pond "listens" whenever it's clicked, in the tour too.
     if (quest.landmark === 'pondRipples' && SONG_ID) playCue()
-    // During the tour the cards open on their own; clicking a landmark does nothing.
+    // During the tour the cards come with the scroll; clicking a landmark does nothing.
     if (isTourActive(useStoryStore.getState()) || !quest.projectId) return
     openProject(quest.projectId, at)
   }

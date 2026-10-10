@@ -54,3 +54,31 @@ export function segmentOf(part: Part, stop = -1): Segment {
 export function progressIn(seg: Segment, value: number): number {
   return Math.min(1, Math.max(0, (value - seg.from) / (seg.to - seg.from)))
 }
+
+/** Where the scroll is in the story: the stretch it is on and how far through it (0..1). */
+export function beatAt(value: number): { seg: Segment; t: number } {
+  const seg = SEGMENTS.find((s) => value < s.to) ?? SEGMENTS[SEGMENTS.length - 1]
+  return { seg, t: progressIn(seg, value) }
+}
+
+/**
+ * Inside a build stretch: the crew hammers all the way through, the quest's
+ * clicks land one by one up to PLACE_AT, where the landmark is placed, and it
+ * rises over the rest.
+ */
+export const PLACE_AT = 0.45
+const CLICKS_FROM = 0.08
+const CLICKS_TO = 0.38
+
+/** How many of a quest's `count` clicks have landed, `t` of the way through its build stretch. */
+export function clicksDue(count: number, t: number): number {
+  if (count === 0 || t < CLICKS_FROM) return 0
+  if (count === 1) return 1
+  return Math.min(count, 1 + Math.floor(((t - CLICKS_FROM) / (CLICKS_TO - CLICKS_FROM)) * (count - 1)))
+}
+
+/** How far tour stop `stop`'s landmark has risen (0..1) at scroll progress `value`. */
+export function riseAt(stop: number, value: number): number {
+  const t = progressIn(segmentOf('build', stop), value)
+  return Math.min(1, Math.max(0, (t - PLACE_AT) / (1 - PLACE_AT)))
+}

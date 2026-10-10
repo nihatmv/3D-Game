@@ -10,16 +10,12 @@ import { StoryHud } from './ui/story/StoryHud'
 import { Dialogue } from './ui/story/Dialogue'
 import { Hero } from './ui/story/Hero'
 import { ScrollTrack } from './ui/story/ScrollTrack'
-import { useQuestWatcher } from './story/useQuestWatcher'
 import { useEndingDirector } from './story/useEndingDirector'
 import { useCrewDirector } from './story/useCrewDirector'
-import { useTourDirector } from './story/useTourDirector'
 
 const showStats = new URLSearchParams(window.location.search).has('stats')
 
 export default function App() {
-  useQuestWatcher()
-  useTourDirector()
   useEndingDirector()
   useCrewDirector()
 

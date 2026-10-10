@@ -3,7 +3,7 @@ import { PIER_DECK_Y, PIER_LENGTH } from '../scene/story/landmarkGeometry'
 import { wake } from '../scene/perf'
 import { useStoryStore } from '../store/useStoryStore'
 import { HALF } from '../world/constants'
-import { crewWander, gatherCrew, landCrew, sendCrewTo, type Obstacle } from './crew'
+import { crewWander, crewWork, gatherCrew, landCrew, sendCrewTo, type Obstacle } from './crew'
 import { findPier, type Placement } from './landmarks'
 import { QUESTS, TOUR } from './quests'
 
@@ -31,11 +31,10 @@ const obstacles = (placed: Record<string, Placement>): Obstacle[] =>
 
 /**
  * Moves the crew with the story: they step off when the ship is tied up, and
- * from then on run to whichever tour stop is next. They set off as soon as the
- * last landmark rises, so the walk happens while its card is being read and
- * they are waiting at the next glowing spot when the visitor gets there. After
- * the last stop they line up in front of the cabin for the sunset, and once
- * the story is done they stroll around the island on their own.
+ * from then on run to whichever tour stop the scroll is on, hammering there
+ * through its build stretch. Past the last stop they line up in front of the
+ * cabin for the sunset, and once the story is done they stroll around the
+ * island on their own.
  * Runs on store changes only; the walking itself is stepped in scene/story/Crew.tsx.
  */
 export function useCrewDirector() {
@@ -43,6 +42,7 @@ export function useCrewDirector() {
     let landed = false
     let site: string | null = null
     let strolling = false
+    let working = false
     const step = () => {
       const s = useStoryStore.getState()
       // A returning visitor's island is finished from the first frame: the crew is already at the cabin.
@@ -54,12 +54,13 @@ export function useCrewDirector() {
         landCrew(pier, pier.y + DECK_TOP, PIER_LENGTH)
         wake(400)
       }
-      if (s.phase === 'ending' || s.phase === 'done') {
+      if (s.phase === 'ending' || s.phase === 'done' || s.beat.part === 'gather' || s.beat.part === 'sunset') {
         const cabin = QUESTS.find((q) => q.landmark === 'cabin')
         const at = cabin && s.placed[cabin.id]
         if (!at) return
         if (site !== GATHERED) {
           site = GATHERED
+          working = false
           // A row along the cabin's front, the captain in the middle and a step forward, all facing the default camera.
           gatherCrew(
             ROW.map((slot, k) => [at.x + ROW_X + slot * ROW_GAP, at.z + ROW_Z + (k === 0 ? 0.2 : 0)] as const),
@@ -74,12 +75,19 @@ export function useCrewDirector() {
         }
         return
       }
-      const q = s.phase === 'questing' ? TOUR[s.questIndex] : undefined
-      if (!q || q.id === site) return
-      const cheer = site !== null
-      site = q.id
-      sendCrewTo(q.area.x - HALF + 0.5, q.area.z - HALF + 0.5, q.area.r + STAND_OFF, cheer)
-      wake(400)
+      const q = TOUR[s.beat.stop]
+      if (q && q.id !== site) {
+        const cheer = site !== null
+        site = q.id
+        working = false
+        sendCrewTo(q.area.x - HALF + 0.5, q.area.z - HALF + 0.5, q.area.r + STAND_OFF, cheer)
+        wake(400)
+      }
+      if (q && working !== (s.beat.part === 'build')) {
+        working = !working
+        crewWork(working)
+        wake(400)
+      }
     }
     step()
     return useStoryStore.subscribe(step)

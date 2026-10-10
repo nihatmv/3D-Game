@@ -131,6 +131,22 @@
   height: 100%;
 }
 
+/* Wide screens, at a tour stop: the captain speaks from where the stop's card will come up (see .pf-card). */
+.dlg-side {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  width: min(420px, calc(50vw - 24px));
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.dlg-side .dlg {
+  width: 100%;
+  margin: 0;
+}
+
 /* ---------- Hero: the top of the page, before the ship sails in ---------- */
 
 .hero {
@@ -396,6 +412,26 @@
   font-style: italic;
   line-height: 1.4;
   color: #2f8f98;
+}
+
+/* The compact card of a tour stop (StopCard): no wait for a camera flight, and a smaller picture. */
+.stop-card {
+  animation-delay: 0s;
+}
+
+.stop-card .pf-captain {
+  margin-right: 0;
+}
+
+.stop-card .pf-media {
+  aspect-ratio: 2 / 1;
+  margin-bottom: 12px;
+}
+
+.stop-next {
+  color: #9a7f68;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .pf-result {

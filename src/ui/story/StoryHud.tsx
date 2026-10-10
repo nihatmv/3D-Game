@@ -1,13 +1,16 @@
 import { useEffect } from 'react'
 import { useStoryStore } from '../../store/useStoryStore'
 import { TOUR } from '../../story/quests'
+import { jumpScroll } from '../../story/scroll'
+import { segmentOf } from '../../story/timeline'
 import { track } from '../../analytics'
 import { clearProgress } from '../../story/progress'
 import { ProjectCard } from './ProjectCard'
+import { StopCard } from './StopCard'
 import { TimeOfDay } from './TimeOfDay'
 import './Story.css'
 
-/** Esc closes the open card (in the tour, that's Continue). */
+/** Esc closes the open full card. */
 function useEscToClose() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -18,12 +21,11 @@ function useEscToClose() {
   }, [])
 }
 
-/** Progress counter, the time-of-day timeline, Build it all and Skip (Get in touch once the tour is over) and the overlays. Skip builds the whole island at once. */
+/** Progress counter, the time-of-day timeline, Skip (Get in touch once the tour is over) and the cards. Skip scrolls to the end, which builds the whole island at once. */
 export function StoryHud() {
   useEscToClose()
   const built = useStoryStore((s) => s.built)
   const phase = useStoryStore((s) => s.phase)
-  const autoBuild = useStoryStore((s) => s.autoBuild)
   const finished = phase === 'ending' || phase === 'done'
   const stops = TOUR.filter((q) => built.includes(q.id)).length
 
@@ -69,19 +71,9 @@ export function StoryHud() {
         <div className="story-skip">
           <button
             className="story-btn"
-            disabled={autoBuild}
-            onClick={() => {
-              track('build_all_clicked')
-              useStoryStore.getState().buildAll()
-            }}
-          >
-            {autoBuild ? '⚡ Building…' : '⚡ Build it all'}
-          </button>
-          <button
-            className="story-btn"
             onClick={() => {
               track('skip_clicked')
-              useStoryStore.getState().skipAll()
+              jumpScroll(segmentOf('sunset').to)
             }}
           >
             <span>
@@ -91,6 +83,7 @@ export function StoryHud() {
         </div>
       )}
 
+      <StopCard />
       <ProjectCard />
     </>
   )

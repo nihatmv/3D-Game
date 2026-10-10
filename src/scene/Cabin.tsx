@@ -16,7 +16,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { HALF, topY } from '../world/constants'
 import { DECOR_CABIN, HIGHLAND, HIGHLAND_X, HIGHLAND_Z } from '../world/decor'
 import { CHIMNEY_TOP, cabinGeometry, cabinLightsGeometry } from './decorGeometry'
-import { isLowPower, requestShadowUpdate, wake } from './perf'
+import { riseOfKind } from '../story/scrollDirector'
+import { isLowPower, requestShadowUpdate } from './perf'
 import { tod } from './timeOfDay'
 
 /**
@@ -31,7 +32,6 @@ const LEVEL = Number(HIGHLAND[Math.floor(TZ) - HIGHLAND_Z][Math.floor(TX) - HIGH
 const POS: [number, number, number] = [TX - HALF + 0.5, topY(LEVEL), TZ - HALF + 0.5]
 
 const PUFFS = 5
-const RISE_MS = 900
 
 function smokeGeometry(): BufferGeometry {
   const parts: BufferGeometry[] = []
@@ -112,15 +112,16 @@ export function Cabin() {
   )
 
   const group = useRef<Group>(null)
-  const start = useRef(performance.now())
+  const risen = useRef(-1)
   const smokeMesh = useRef<Mesh>(null)
   const lastTod = useRef(-1)
   useFrame((_, dt) => {
-    // Rise out of the ground; the shadow follows until it stands, then never changes.
-    const t = Math.min(1, (performance.now() - start.current) / RISE_MS)
-    if (group.current && group.current.scale.y !== 1) {
+    // Rise out of the ground with the scroll; the shadow follows only while it moves.
+    const t = riseOfKind('cabin')
+    if (group.current && t !== risen.current) {
+      risen.current = t
+      group.current.visible = t > 0
       group.current.scale.set(1, Math.max(0.001, 1 - (1 - t) ** 3), 1)
-      wake(200)
       requestShadowUpdate()
     }
     smokeMat.uniforms.uTime.value += dt

@@ -12,6 +12,8 @@ export function Hero() {
   const [away, setAway] = useState(() => window.scrollY > AWAY_PX)
   useEffect(() => {
     const onScroll = () => setAway(window.scrollY > AWAY_PX)
+    // A returning visitor's page opens further down, before this listens.
+    onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
