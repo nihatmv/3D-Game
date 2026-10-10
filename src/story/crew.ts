@@ -1,15 +1,22 @@
+import { emit } from '../scene/puffs'
 import { useIslandStore } from '../store/useIslandStore'
+import { useStoryStore } from '../store/useStoryStore'
 import { HALF, SEA_Y, STEP, TileType } from '../world/constants'
 import { idx, inBounds } from '../world/grid'
 import { isTree } from '../world/plantRules'
 import { groundAt } from '../world/terrainField'
 import { PIER_DIR, type Placement } from './landmarks'
+import { QUESTS, TOUR, type Quest } from './quests'
+import { beatAt } from './timeline'
 
 /**
- * The ship's crew: the captain (index 0) and five men who step off at the pier,
- * run to each building site and hammer there (useCrewDirector decides when), and stroll around the finished island. Plain mutable state stepped from the scene's frame loop
- * (scene/story/Crew.tsx), so walking costs no React renders. No per-frame work
- * once everyone stands still: `stepCrew` returns false and the scene stops waking.
+ * The ship's crew: the captain (index 0) and five men. During the tour they
+ * follow the scroll (scrubCrew): off the ship and onto the beach, on to each
+ * building site, hammering through its build, and into a row at the cabin; they
+ * walk back when the page scrolls back and stand still when it rests. After the
+ * tour they celebrate and stroll around the finished island on their own
+ * (stepCrew). Plain mutable state read by scene/story/Crew.tsx, so none of it
+ * costs React renders.
  */
 
 export type Mate = {
@@ -22,7 +29,7 @@ export type Mate = {
   path: Array<readonly [number, number]>
   /** Where to look once the path is walked. */
   face: number
-  /** Seconds until he sets off (they leave the ship one after another; after a build they cheer first). */
+  /** Seconds until he sets off on his first stroll. */
   delay: number
   /** World units per second on the current walk. */
   speed: number
@@ -43,10 +50,8 @@ export type Mate = {
 
 export const CREW_SIZE = 6
 
-/** World units per second: a stroll off the ship, a run between building sites. */
+/** World units per second on a stroll. */
 const WALK = 1.7
-const RUN = 3.3
-const GAP_S = 0.38
 const TURN = 10
 
 const mate = (): Mate => ({
@@ -70,14 +75,19 @@ function footY(x: number, z: number): number {
   return Math.max(SEA_Y, groundAt(useIslandStore.getState().field, x, z))
 }
 
-/** Dry ground: not the sea and not a pond. */
+/** Tiles the tour digs into water (the pond): the crew keeps off them from the start, so a walk laid before the digging still holds after it. */
+const toBeWater = new Set(
+  TOUR.filter((q) => q.tool === 'water').flatMap((q) => q.clicks.map(([dx, dz]) => idx(q.area.x + dx, q.area.z + dz))),
+)
+
+/** Dry ground: not the sea and not a pond (dug already, or about to be). */
 const isLand = (x: number, z: number) => {
   const tx = Math.floor(x + HALF)
   const tz = Math.floor(z + HALF)
   if (!inBounds(tx, tz)) return false
   const { height, type } = useIslandStore.getState()
   const i = idx(tx, tz)
-  return height[i] > 0 && type[i] !== TileType.Water
+  return height[i] > 0 && type[i] !== TileType.Water && !toBeWater.has(i)
 }
 
 type Point = readonly [number, number]
@@ -118,100 +128,243 @@ const BEACH: ReadonlyArray<readonly [number, number]> = [
   [3.05, 0.55],
 ]
 
-/** Turns (in y) they settle into: toward the island's middle, each a little differently. */
+/** Turns (in y) they settle into on the beach: toward the island's middle, each a little differently. */
 const LOOK = [0.9, 1.5, 1.2, 0.5, 0.7, 1.35]
 
-/**
- * Everyone leaves the ship: one after another they appear at the far end of the
- * pier, walk its deck to the shore and spread out on the beach. `deckY` is the
- * world height of the deck's top, `length` how far the pier reaches from `at`.
- */
-export function landCrew(at: Placement, deckY: number, length: number) {
+/** Where the men stand around a site: an arc on the default camera's side (+x +z), so the build stays in view. */
+const ARC = [45, 10, 80, -25, 115].map((deg) => (deg * Math.PI) / 180)
+const CAPTAIN_ARC = (150 * Math.PI) / 180
+/** How far outside a quest's glowing ring the men stand. */
+const STAND_OFF = 0.9
+
+/** The row in front of the cabin, from its placement: where it starts, how far in front, the gap, and each mate's slot. */
+const ROW_X = -2.8
+const ROW_Z = 1.15
+const ROW_GAP = 0.62
+const ROW = [3, 0, 1, 2, 4, 5]
+/** The row faces the default camera. */
+const ROW_FACE = Math.PI / 4
+
+/** Where a mate stands between walks, and which way he looks. */
+type Stand = { at: Point; face: number }
+/** One mate's walk: its waypoints and the distance walked at each. */
+type Leg = { pts: Point[]; cum: number[] }
+
+/** The pier's placement and length, for the walk off the ship. */
+let dock: { at: Placement; length: number } | null = null
+
+/** The pier the ship lies at: its deck (top at world height `deckY`) is where the crew steps off. */
+export function setCrewPier(at: Placement, deckY: number, length: number) {
   const far = at.x + PIER_DIR * length
   pier = { x0: Math.min(at.x, far) - 0.1, x1: Math.max(at.x, far) + 0.1, z: at.z, y: deckY }
-  crew.forEach((m, k) => {
-    // Two lanes on the deck, so they don't walk through each other.
-    const lane = (k % 2 ? 0.16 : -0.16)
+  dock = { at, length }
+}
+
+/** Spread out on the beach by the pier. */
+function beachStands(): Stand[] {
+  const at = dock?.at ?? { x: 0, z: 0 }
+  return crew.map((_, k) => {
     const [inland, across] = BEACH[k]
     let bx = at.x - PIER_DIR * inland
     const bz = at.z + across
     // The shore isn't straight: step further inland until there's ground underfoot.
     for (let n = 0; n < 6 && !isLand(bx, bz); n++) bx -= PIER_DIR * 0.5
-    m.x = far - PIER_DIR * 0.45
-    m.z = at.z + lane
-    m.y = deckY
-    m.heading = Math.atan2(-PIER_DIR, 0)
-    m.path = [
-      [at.x - PIER_DIR * 0.35, at.z + lane],
-      [bx, bz],
-    ]
-    m.face = LOOK[k]
-    m.delay = k * GAP_S
-    m.speed = WALK
-    m.shown = 0
-    m.cycle = 0
-    m.walking = m.working = m.cheering = false
+    return { at: [bx, bz], face: LOOK[k] }
   })
-  wander = false
-  crewVersion++
 }
 
-/** The men hammer once they stand at the site (crewWork). */
-let workOn = false
-
-/** Where the men stand around a site: an arc on the default camera's side (+x +z), so the build stays in view. */
-const ARC = [45, 10, 80, -25, 115].map((deg) => (deg * Math.PI) / 180)
-const CAPTAIN_ARC = (150 * Math.PI) / 180
-
-/**
- * Everyone runs to the building site at world `cx`/`cz` and stands around it,
- * `radius` out (the captain a little further back, to one side). `cheer` holds
- * them where they are for a moment first, jumping (the last build just rose).
- */
-export function sendCrewTo(cx: number, cz: number, radius: number, cheer = false) {
-  workOn = false
-  wander = false
-  crew.forEach((m, k) => {
+/** Around a quest's site, facing it (the captain a little further back, to one side). */
+function siteStands(q: Quest): Stand[] {
+  const cx = q.area.x - HALF + 0.5
+  const cz = q.area.z - HALF + 0.5
+  return crew.map((_, k) => {
     const a = k === 0 ? CAPTAIN_ARC : ARC[k - 1]
-    let r = radius + (k === 0 ? 0.6 : 0)
+    let r = q.area.r + STAND_OFF + (k === 0 ? 0.6 : 0)
     let to: Point = [cx + Math.cos(a) * r, cz + Math.sin(a) * r]
     // Water or sea there: stand further out.
     for (let n = 0; n < 4 && !isLand(to[0], to[1]); n++) {
       r += 0.5
       to = [cx + Math.cos(a) * r, cz + Math.sin(a) * r]
     }
-    // Still on the pier (or not off the ship yet): walk its deck to the shore first.
-    const ashore: Point[] = pier && !isLand(m.x, m.z) && m.path.length ? [m.path[0]] : []
-    const from: Point = ashore[0] ?? [m.x, m.z]
-    m.path = [...ashore, ...route(from, to)]
-    m.face = Math.atan2(cx - to[0], cz - to[1])
-    m.speed = RUN
-    m.working = false
-    if (cheer && m.shown >= 1) m.delay = 0.55 + k * 0.07
+    return { at: to, face: Math.atan2(cx - to[0], cz - to[1]) }
   })
-  crewVersion++
+}
+
+/** A row along the cabin's front, the captain in the middle and a step forward. */
+function rowStands(cabin: Placement): Stand[] {
+  return ROW.map((slot, k) => ({ at: [cabin.x + ROW_X + slot * ROW_GAP, cabin.z + ROW_Z + (k === 0 ? 0.2 : 0)], face: ROW_FACE }))
+}
+
+const cabinAt = () => {
+  const q = QUESTS.find((q) => q.landmark === 'cabin')
+  return q && useStoryStore.getState().placed[q.id]
 }
 
 /**
- * The work is done: everyone runs to line up at `spots` (world x/z, one per
- * mate, captain first) and turns to `face`, after a cheer where they stand.
- * `instant` puts them there at once (a returning visitor finds them waiting).
+ * Stands and walks are worked out when the scroll first needs them (the ground
+ * as it is then: a walk laid after the pond is dug goes around it) and kept, so
+ * scrolling back and forth replays the same steps.
  */
-export function gatherCrew(spots: ReadonlyArray<Point>, face: number, instant = false) {
-  workOn = false
-  wander = false
+const stands = new Map<string, Stand[]>()
+const legs = new Map<string, Leg[]>()
+
+function standsAt(place: 'beach' | 'row' | number): Stand[] {
+  const key = String(place)
+  let st = stands.get(key)
+  if (!st) {
+    const cabin = place === 'row' ? cabinAt() : undefined
+    // No cabin to line up at (it can't be, this late): stay at the last site.
+    if (place === 'row' && !cabin) return standsAt(TOUR.length - 1)
+    st = place === 'beach' ? beachStands() : cabin ? rowStands(cabin) : siteStands(TOUR[place as number])
+    stands.set(key, st)
+  }
+  return st
+}
+
+function toLeg(pts: Point[]): Leg {
+  const cum = [0]
+  for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]))
+  return { pts, cum }
+}
+
+/** Off the ship: from the far end of the pier along its deck (two lanes, so they don't walk through each other) to the beach. */
+function landingLegs(): Leg[] {
+  let ls = legs.get('land')
+  if (!ls && dock) {
+    const { at, length } = dock
+    const far = at.x + PIER_DIR * length
+    ls = standsAt('beach').map((to, k) => {
+      const lane = k % 2 ? 0.16 : -0.16
+      return toLeg([[far - PIER_DIR * 0.45, at.z + lane], [at.x - PIER_DIR * 0.35, at.z + lane], to.at])
+    })
+    legs.set('land', ls)
+  }
+  return ls ?? []
+}
+
+/** From one stand to the next, around any water in between. */
+function walkLegs(key: string, from: Stand[], to: Stand[]): Leg[] {
+  let ls = legs.get(key)
+  if (!ls) {
+    ls = from.map((f, k) => toLeg([f.at, ...route(f.at, to[k].at)]))
+    legs.set(key, ls)
+  }
+  return ls
+}
+
+/** Walk-cycle radians per world unit walked, and hammer blows per build. */
+const STRIDE = 5.2
+const BLOWS = 6
+/** How much later each mate sets off than the one before, as a share of the stretch: off the ship in turn, between sites nearly together. */
+const LAND_GAP = 0.1
+const WALK_GAP = 0.035
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+const smooth = (u: number) => u * u * (3 - 2 * u)
+/** Mate `k`'s own progress through a stretch that is `t` along, setting off `gap` after the one before. */
+const staggered = (t: number, k: number, gap: number) => clamp01((t - k * gap) / (1 - (CREW_SIZE - 1) * gap))
+
+function standAt(m: Mate, st: Stand) {
+  m.x = st.at[0]
+  m.z = st.at[1]
+  m.heading = st.face
+  m.walking = false
+  m.cycle = 0
+}
+
+/** Put `m` `u` of the way along `leg` (walking backward when the page scrolls back), looking `from`/`to` at its ends. */
+function walkLeg(m: Mate, leg: Leg, u: number, from: number, to: number, back: boolean) {
+  const { pts, cum } = leg
+  const last = pts.length - 1
+  if (u <= 0 || u >= 1 || cum[last] === 0) {
+    standAt(m, { at: u <= 0 ? pts[0] : pts[last], face: u <= 0 ? from : to })
+    return
+  }
+  const d = smooth(u) * cum[last]
+  let k = 1
+  while (k < last && cum[k] < d) k++
+  const f = (d - cum[k - 1]) / (cum[k] - cum[k - 1] || 1)
+  const dx = pts[k][0] - pts[k - 1][0]
+  const dz = pts[k][1] - pts[k - 1][1]
+  m.x = pts[k - 1][0] + dx * f
+  m.z = pts[k - 1][1] + dz * f
+  m.heading = Math.atan2(dx, dz) + (back ? Math.PI : 0)
+  m.walking = true
+  m.cycle = d * STRIDE
+}
+
+/** The scroll progress the crew was last put at, and the hammer blows struck so far in the current build. */
+let scrubbed = -1
+let blows = 0
+
+/**
+ * Put the crew where the story is at scroll progress `value` (timeline.ts):
+ * aboard while the ship sails, down the pier in turn as it lands, across to
+ * each site as the scroll walks them there, hammering through the build, still
+ * for the card, and into the row at the cabin at the end. Does nothing unless
+ * the scroll moved.
+ */
+export function scrubCrew(value: number) {
+  if (value === scrubbed || !dock) return
+  const back = value < scrubbed
+  scrubbed = value
+  const { seg, t } = beatAt(value)
+  const here = seg.stop
+
   crew.forEach((m, k) => {
-    if (instant) {
-      const [x, z] = spots[k]
-      Object.assign(m, { x, z, y: footY(x, z), heading: face, face, path: [], delay: 0, shown: 1, cycle: 0, walking: false, working: false, cheering: false })
-      return
+    m.path = []
+    m.delay = 0
+    m.working = m.cheering = false
+    m.shown = seg.part === 'sail' ? 0 : 1
+    if (seg.part === 'sail') {
+      // Still aboard.
+    } else if (seg.part === 'land') {
+      const u = staggered(t, k, LAND_GAP)
+      const leg = landingLegs()[k]
+      m.shown = clamp01(u / 0.1)
+      walkLeg(m, leg, u, Math.atan2(-PIER_DIR, 0), standsAt('beach')[k].face, back)
+    } else if (seg.part === 'walk') {
+      const from = standsAt(here > 0 ? here - 1 : 'beach')
+      const to = standsAt(here)
+      walkLeg(m, walkLegs(`walk${here}`, from, to)[k], staggered(t, k, WALK_GAP), from[k].face, to[k].face, back)
+    } else if (seg.part === 'build') {
+      standAt(m, standsAt(here)[k])
+      // The men hammer; the captain watches.
+      if (k > 0) {
+        m.working = true
+        m.cycle = t * BLOWS * Math.PI * 2 + k * 0.9
+      }
+    } else if (seg.part === 'card') {
+      standAt(m, standsAt(here)[k])
+    } else if (seg.part === 'gather') {
+      const from = standsAt(TOUR.length - 1)
+      const to = standsAt('row')
+      walkLeg(m, walkLegs('gather', from, to)[k], staggered(t, k, WALK_GAP), from[k].face, to[k].face, back)
+    } else {
+      standAt(m, standsAt('row')[k])
     }
-    const ashore: Point[] = pier && !isLand(m.x, m.z) && m.path.length ? [m.path[0]] : []
-    m.path = [...ashore, ...route(ashore[0] ?? [m.x, m.z], spots[k])]
-    m.face = face
-    m.speed = RUN
-    m.working = false
-    if (m.shown >= 1) m.delay = 0.55 + k * 0.07
+    m.y = footY(m.x, m.z)
+  })
+
+  // Dust flies with each blow, on the way forward.
+  const struck = seg.part === 'build' ? Math.floor(t * BLOWS) : 0
+  if (struck > blows && !back) {
+    const q = TOUR[here]
+    const cx = q.area.x - HALF + 0.5
+    const cz = q.area.z - HALF + 0.5
+    emit('dust', cx, footY(cx, cz) + 0.15, cz, 5)
+  }
+  blows = struck
+  crewVersion++
+}
+
+/** The tour is over: everyone stands in the row in front of the cabin, whatever the scroll last did with them. */
+export function gatherCrew(cabin: Placement) {
+  wander = false
+  rowStands(cabin).forEach((st, k) => {
+    const m = crew[k]
+    standAt(m, st)
+    Object.assign(m, { y: footY(m.x, m.z), face: st.face, path: [], delay: 0, shown: 1, working: false, cheering: false })
   })
   crewVersion++
 }
@@ -326,30 +479,13 @@ function stroll(m: Mate): boolean {
   return true
 }
 
-/** Start or stop the hammering. Men still on their way join in as they arrive. */
-export function crewWork(on: boolean) {
-  workOn = on
-  if (!on) for (const m of crew) m.working = false
-  crewVersion++
-}
-
-/** How many of the men (not the captain) stand at the site, ready to build. */
-export function crewReady(): number {
-  let n = 0
-  crew.forEach((m, k) => {
-    if (k > 0 && m.shown >= 1 && m.delay <= 0 && m.path.length === 0) n++
-  })
-  return n
-}
-
 /** Shortest way round from angle `a` to `b`. */
 const turnTo = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.cos(b - a))
 
 /**
- * Advance the crew by `dt` seconds. Returns true while anyone is still waiting
- * to leave, walking or turning (keep rendering at full rate), false once all
- * stand still. Strolling (crewWander) returns false too: it is happy with the
- * idle frame rate.
+ * After the tour: advance the crew by `dt` seconds (celebrating, then
+ * strolling). Returns true while they celebrate (keep rendering at full rate);
+ * strolling returns false, as it is happy with the idle frame rate.
  */
 export function stepCrew(dt: number): boolean {
   let active = false
@@ -390,13 +526,9 @@ export function stepCrew(dt: number): boolean {
         m.z += (dz / d) * step
         want = Math.atan2(dx, dz)
       }
-      m.cycle += dt * (m.speed > WALK ? 17 : 12)
+      m.cycle += dt * 12
       m.walking = m.path.length > 0
       if (!m.walking) m.cycle = 0
-      busy = true
-    } else if (workOn && k > 0) {
-      m.working = true
-      m.cycle += dt * 11
       busy = true
     } else if (party > 0) {
       // Each at his own pace, so they don't jump in step.

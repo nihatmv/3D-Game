@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, Euler, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three'
-import { CREW_SIZE, crew, crewVersion, stepCrew } from '../../story/crew'
+import { isTourActive } from '../../store/useStoryStore'
+import { CREW_SIZE, crew, crewVersion, scrubCrew, stepCrew } from '../../story/crew'
+import { scroll } from '../../story/scroll'
 import { wake } from '../perf'
 import { HAND, captainHatGeometry, crewClothGeometry, crewFixedGeometry, hammerGeometry } from './crewGeometry'
 
@@ -22,10 +24,10 @@ const _one = new Vector3(1, 1, 1)
 const HIDDEN = new Matrix4().makeScale(0, 0, 0)
 
 /**
- * The captain and his five men (story/crew.ts; useCrewDirector sends them
- * around): they step off the ship, run to each building site and hammer there.
- * Four draw calls (three instanced, plus the captain's hat), Lambert, no
- * shadows, and nothing runs once they stand still.
+ * The captain and his five men (story/crew.ts): they step off the ship, walk
+ * to each building site and hammer there, all with the scroll, then stroll the
+ * finished island. Four draw calls (three instanced, plus the captain's hat),
+ * Lambert, no shadows, and nothing is redrawn while they stand still.
  */
 export function Crew() {
   const fixed = useRef<InstancedMesh>(null)
@@ -47,9 +49,11 @@ export function Crew() {
 
   const drawn = useRef(0)
   useFrame((_, rawDt) => {
-    // Version 0: nobody has left the ship yet.
+    // The tour puts them where the scroll is; after it they move on their own.
+    if (isTourActive()) scrubCrew(scroll.value)
+    else if (crewVersion > 0 && stepCrew(Math.min(rawDt, 0.25))) wake(200)
+    // Version 0: nobody has been placed yet.
     if (crewVersion === 0) return
-    if (stepCrew(Math.min(rawDt, 0.25))) wake(200)
     if (drawn.current === crewVersion) return
     drawn.current = crewVersion
 
