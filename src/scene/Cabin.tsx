@@ -4,7 +4,6 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
-  Group,
   IcosahedronGeometry,
   Mesh,
   MeshLambertMaterial,
@@ -17,6 +16,7 @@ import { HALF, topY } from '../world/constants'
 import { DECOR_CABIN, HIGHLAND, HIGHLAND_X, HIGHLAND_Z } from '../world/decor'
 import { CHIMNEY_TOP, cabinGeometry, cabinLightsGeometry } from './decorGeometry'
 import { riseOfKind } from '../story/scrollDirector'
+import { makeBuildMaterial } from './buildMaterial'
 import { isLowPower, requestShadowUpdate } from './perf'
 import { tod } from './timeOfDay'
 
@@ -89,7 +89,7 @@ export function Cabin() {
   const body = useMemo(() => cabinGeometry(), [])
   const lights = useMemo(() => cabinLightsGeometry(), [])
   const smoke = useMemo(() => smokeGeometry(), [])
-  const bodyMat = useMemo(() => new MeshLambertMaterial({ vertexColors: true, flatShading: true }), [])
+  const { material: bodyMat, progress } = useMemo(makeBuildMaterial, [])
   const lightMat = useMemo(() => new MeshLambertMaterial({ color: GLASS_DAY.clone(), emissive: GLOW, emissiveIntensity: 0 }), [])
   const smokeMat = useMemo(
     () =>
@@ -111,18 +111,23 @@ export function Cabin() {
     [body, lights, smoke, bodyMat, lightMat, smokeMat],
   )
 
-  const group = useRef<Group>(null)
+  const bodyMesh = useRef<Mesh>(null)
+  const lightsMesh = useRef<Mesh>(null)
   const risen = useRef(-1)
   const smokeMesh = useRef<Mesh>(null)
   const lastTod = useRef(-1)
   useFrame((_, dt) => {
-    // Rise out of the ground with the scroll; the shadow follows only while it moves.
+    // Log by log with the scroll (in the material's shader); the windows and its shadow once it stands.
     const t = riseOfKind('cabin')
-    if (group.current && t !== risen.current) {
+    if (t !== risen.current) {
+      const was = risen.current
       risen.current = t
-      group.current.visible = t > 0
-      group.current.scale.set(1, Math.max(0.001, 1 - (1 - t) ** 3), 1)
-      requestShadowUpdate()
+      progress.value = t
+      if (t >= 1 !== was >= 1 || was < 0) {
+        if (bodyMesh.current) bodyMesh.current.castShadow = t >= 1
+        if (lightsMesh.current) lightsMesh.current.visible = t >= 1
+        requestShadowUpdate()
+      }
     }
     smokeMat.uniforms.uTime.value += dt
     if (smokeMesh.current) smokeMesh.current.visible = t >= 1 && !isLowPower()
@@ -135,9 +140,9 @@ export function Cabin() {
   })
 
   return (
-    <group ref={group} position={POS} rotation-y={ROT} scale-y={0.001}>
-      <mesh geometry={body} material={bodyMat} castShadow receiveShadow raycast={() => null} />
-      <mesh geometry={lights} material={lightMat} raycast={() => null} />
+    <group position={POS} rotation-y={ROT}>
+      <mesh ref={bodyMesh} geometry={body} material={bodyMat} receiveShadow raycast={() => null} />
+      <mesh ref={lightsMesh} geometry={lights} material={lightMat} visible={false} raycast={() => null} />
       <mesh ref={smokeMesh} geometry={smoke} material={smokeMat} renderOrder={4} raycast={() => null} />
     </group>
   )

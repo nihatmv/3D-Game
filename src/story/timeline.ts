@@ -11,13 +11,13 @@ export type Part = 'sail' | 'land' | 'walk' | 'build' | 'card' | 'gather' | 'sun
 /** One stretch of the page; `from`/`to` are scroll progress (0..1). `stop` indexes TOUR, -1 outside the stops. */
 export type Segment = { part: Part; stop: number; from: number; to: number }
 
-// About 10.5 screens in all. At an easy pace (a screen every two seconds or so)
-// that is some 20 s of motion, plus the time spent reading five cards: a tour of 60-90 s.
-// The build gets the most room, so a landmark's rise takes a few turns of the wheel.
+// About 12 screens in all. At an easy pace (a screen every two seconds or so)
+// that is some 25 s of motion, plus the time spent reading five cards: a tour of 60-90 s.
+// The build gets the most room, so a landmark goes up piece by piece over several turns of the wheel.
 const SAIL = 0.9
 const LAND = 0.5
 const WALK = 0.4
-const BUILD = 0.65
+const BUILD = 0.95
 const CARD = 0.55
 const GATHER = 0.4
 const SUNSET = 0.5
@@ -69,11 +69,11 @@ export function beatAt(value: number): { seg: Segment; t: number } {
 /**
  * Inside a build stretch: the crew hammers all the way through, the quest's
  * clicks land one by one up to PLACE_AT, where the landmark is placed, and it
- * rises over the rest.
+ * is put together over the rest.
  */
-export const PLACE_AT = 0.45
-const CLICKS_FROM = 0.08
-const CLICKS_TO = 0.38
+export const PLACE_AT = 0.28
+const CLICKS_FROM = 0.05
+const CLICKS_TO = 0.24
 
 /** How many of a quest's `count` clicks have landed, `t` of the way through its build stretch. */
 export function clicksDue(count: number, t: number): number {

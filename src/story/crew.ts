@@ -254,7 +254,7 @@ function walkLegs(key: string, from: Stand[], to: Stand[]): Leg[] {
 
 /** Walk-cycle radians per world unit walked, and hammer blows per build. */
 const STRIDE = 5.2
-const BLOWS = 6
+const BLOWS = 9
 /** How much later each mate sets off than the one before, as a share of the stretch: off the ship in turn, between sites nearly together. */
 const LAND_GAP = 0.1
 const WALK_GAP = 0.035
