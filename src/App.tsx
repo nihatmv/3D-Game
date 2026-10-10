@@ -9,17 +9,17 @@ import { Toolbar } from './ui/Toolbar'
 import { StoryHud } from './ui/story/StoryHud'
 import { Dialogue } from './ui/story/Dialogue'
 import { Hero } from './ui/story/Hero'
-import { ScrollTrack } from './ui/story/ScrollTrack'
 import { useCrewDirector } from './story/useCrewDirector'
+import { useStepInput } from './story/useStepInput'
 
 const showStats = new URLSearchParams(window.location.search).has('stats')
 
 export default function App() {
   useCrewDirector()
+  useStepInput()
 
   return (
     <>
-      <ScrollTrack />
       <div className="stage">
         <Canvas
           frameloop="demand"

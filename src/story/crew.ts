@@ -7,7 +7,7 @@ import { isTree } from '../world/plantRules'
 import { groundAt } from '../world/terrainField'
 import { PIER_DIR, type Placement } from './landmarks'
 import { QUESTS, TOUR, type Quest } from './quests'
-import { beatAt } from './timeline'
+import { ASHORE_AT, beatAt } from './timeline'
 
 /**
  * The ship's crew: the captain (index 0) and five men. During the tour they
@@ -319,7 +319,7 @@ export function scrubCrew(value: number) {
     if (seg.part === 'sail') {
       // Still aboard.
     } else if (seg.part === 'land') {
-      const u = staggered(t, k, LAND_GAP)
+      const u = staggered(Math.min(1, t / ASHORE_AT), k, LAND_GAP)
       const leg = landingLegs()[k]
       m.shown = clamp01(u / 0.1)
       walkLeg(m, leg, u, Math.atan2(-PIER_DIR, 0), standsAt('beach')[k].face, back)

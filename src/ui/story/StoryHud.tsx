@@ -2,8 +2,8 @@ import { useEffect } from 'react'
 import { isTourActive, useStoryStore } from '../../store/useStoryStore'
 import { projectById } from '../../story/projects'
 import { TOUR } from '../../story/quests'
-import { jumpScroll } from '../../story/scroll'
-import { segmentOf } from '../../story/timeline'
+import { jumpToStop } from '../../story/scroll'
+import { STOPS, stopOfCard } from '../../story/timeline'
 import { track } from '../../analytics'
 import { clearProgress } from '../../story/progress'
 import { ProjectCard } from './ProjectCard'
@@ -22,15 +22,9 @@ function useEscToClose() {
   }, [])
 }
 
-/** The stop's card, in the middle of its stretch of the scroll. */
-const cardAt = (stop: number) => {
-  const card = segmentOf('card', stop)
-  return (card.from + card.to) / 2
-}
-
 /**
  * Progress dots (each jumps to its stop; in free play it opens the stop's
- * card), Restart, Skip (scrolls to the end, which builds the whole island at
+ * card), Restart, Skip (jumps to the end, which builds the whole island at
  * once), free play's time-of-day timeline and Get in touch, and the cards.
  */
 export function StoryHud() {
@@ -44,7 +38,7 @@ export function StoryHud() {
   const goTo = (stop: number) => {
     const story = useStoryStore.getState()
     const q = TOUR[stop]
-    if (isTourActive(story)) jumpScroll(cardAt(stop))
+    if (isTourActive(story)) jumpToStop(stopOfCard(stop))
     else if (q.projectId) story.openProject(q.projectId, story.placed[q.id])
   }
 
@@ -102,7 +96,7 @@ export function StoryHud() {
               className="story-btn"
               onClick={() => {
                 track('skip_clicked')
-                jumpScroll(1)
+                jumpToStop(STOPS.length - 1)
               }}
             >
               <span>

@@ -1,14 +1,15 @@
 import { isTourActive, useStoryStore } from '../../store/useStoryStore'
 import { projectById } from '../../story/projects'
 import { TOUR } from '../../story/quests'
+import { stepBy } from '../../story/scroll'
 import { PirateAvatar } from './PirateAvatar'
 import { ProjectLinks, ProjectMedia, ProjectResult } from './ProjectBody'
 
 /**
  * The compact card that comes with the scroll once a stop's landmark stands:
  * the captain's line, a picture, the project's name, pitch and one result, and
- * its links. Details opens the full card (ProjectCard); scrolling on moves to
- * the next stop.
+ * its links. Details opens the full card (ProjectCard); scrolling on (or the
+ * hint, which is a button) plays the story to the next stop.
  */
 export function StopCard() {
   const quest = useStoryStore((s) => (isTourActive(s) && s.beat.part === 'card' && !s.openCard ? TOUR[s.beat.stop] : undefined))
@@ -33,7 +34,9 @@ export function StopCard() {
       <ProjectResult project={project} />
       <ProjectLinks project={project} />
       <div className="pf-card-foot">
-        <span className="stop-next">Keep scrolling ↓</span>
+        <button className="stop-next" onClick={() => stepBy(1)}>
+          Keep scrolling ↓
+        </button>
         <button className="pf-continue" onClick={() => openProject(project.id)}>
           Details
         </button>

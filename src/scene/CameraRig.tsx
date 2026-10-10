@@ -13,6 +13,9 @@ import { scroll } from '../story/scroll'
 import { beatAt } from '../story/timeline'
 import { wake } from './perf'
 
+/** How far through the contact stretch the camera is back at the home view. */
+const PULL_BACK_BY = 0.5
+
 /** Free play: camera flight to a landmark and back. */
 const FLY_MS = 1000
 
@@ -136,6 +139,18 @@ export function CameraRig() {
     // Only a focus change starts a flight; resizing mid-card keeps the current framing.
   }, [focus, camera])
 
+  // Free play starts from the whole-island view, wherever the tour's camera was when "Explore the island" was pressed.
+  const toured = useRef(touring)
+  useEffect(() => {
+    const c = ref.current
+    if (c && toured.current && !touring) {
+      flight.current = { from: { pos: camera.position.clone(), target: c.target.clone() }, to: tour.home, start: performance.now() }
+      wake(FLY_MS + 200)
+    }
+    toured.current = touring
+    // Only leaving the tour starts this flight.
+  }, [touring, camera])
+
   useFrame(() => {
     const f = flight.current
     const c = ref.current
@@ -161,7 +176,8 @@ export function CameraRig() {
       } else if (seg.part === 'contact') {
         from = tour.cabin
       }
-      const e = easeInOutCubic(t)
+      // Back out to the whole island early in the last stretch, so the contact card has it behind it.
+      const e = easeInOutCubic(seg.part === 'contact' ? Math.min(1, t / PULL_BACK_BY) : t)
       camera.position.lerpVectors(from.pos, to.pos, e)
       c.target.lerpVectors(from.target, to.target, e)
       c.update()

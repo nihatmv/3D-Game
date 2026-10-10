@@ -4,10 +4,10 @@ import { stepScrollDirector } from '../../story/scrollDirector'
 import { wake } from '../perf'
 
 /**
- * Eases the story's scroll progress (story/scroll.ts) once per rendered frame,
+ * Moves the story's progress on (story/scroll.ts) once per rendered frame,
  * lets the director act on it, and keeps the frame rate up until it has caught
- * up with the page. Mounted first in the scene, so everything after it reads
- * this frame's value.
+ * up with where the visitor scrolled it. Mounted first in the scene, so everything after it reads this frame's
+ * value.
  */
 export function ScrollDriver() {
   useFrame((_, rawDt) => {

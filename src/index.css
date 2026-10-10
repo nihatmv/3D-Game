@@ -4,32 +4,18 @@
   background: #fbe3c8;
 }
 
+/* The page never scrolls: gestures step the story (story/useStepInput.ts) or, in free play, move the camera. */
 html,
 body {
   margin: 0;
   width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-/* The island stays put; the page scrolls past it (ui/story/ScrollTrack). */
 .stage {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-/* Phones: as tall as the screen with the address bar away, so the canvas isn't resized (and redrawn) each time the bar slides in or out mid-scroll. */
-@supports (height: 100lvh) {
-  html.scroll-mode .stage {
-    height: 100lvh;
-  }
-}
-
-/* Free play: the wheel and fingers belong to the camera and tools, not the page. */
-html:not(.scroll-mode),
-html:not(.scroll-mode) body {
-  overflow: hidden;
+  inset: 0;
 }
 
 /* Touch: no page bounce, no grey tap flash, no long-press callout on the canvas. */
@@ -45,8 +31,3 @@ canvas {
   user-select: none;
 }
 
-/* During the tour a finger on the island scrolls the story. */
-html.scroll-mode canvas {
-  /* Over the inline style OrbitControls puts on the canvas. */
-  touch-action: pan-y !important;
-}

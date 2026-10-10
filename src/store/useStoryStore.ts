@@ -20,6 +20,8 @@ type StoryState = {
   questIndex: number
   /** Where the scroll is in the story. Set by the scroll director, and only when it changes. */
   beat: Beat
+  /** The stop (timeline.ts STOPS) the story rests at or is playing to. Set by the stepper (scroll.ts). */
+  step: number
   /** Ids of quests whose landmark is built. */
   built: string[]
   /** Where each built quest's landmark stands. */
@@ -34,6 +36,7 @@ type StoryState = {
   /** Follow the visitor's clock. Dragging the timeline stops it. */
   hourLive: boolean
 
+  setStep: (step: number) => void
   /** The scroll moved on to another stretch of the story. Closes an open full card. */
   setBeat: (beat: Beat) => void
   /** The next stop is built: place its landmark and move on. */
@@ -58,6 +61,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   phase: 'intro',
   questIndex: 0,
   beat: { part: 'sail', stop: -1 },
+  step: 0,
   built: [],
   placed: {},
   openCard: null,
@@ -65,6 +69,10 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   shipState: 'arriving',
   hour: liveHour(),
   hourLive: true,
+
+  setStep: (step) => {
+    if (step !== get().step) set({ step })
+  },
 
   setBeat: (beat) => {
     const started = get().phase === 'intro' && beat.part !== 'sail' && beat.part !== 'land'

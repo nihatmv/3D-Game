@@ -218,10 +218,22 @@
 }
 
 .hero-hint {
-  margin: 12px 0 0;
+  display: block;
+  margin: 8px auto 0;
+  padding: 4px 8px;
+  border: none;
+  background: none;
   color: #6b5644;
+  font: inherit;
   font-size: 14px;
   font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.hero.away .hero-hint {
+  pointer-events: none;
 }
 
 .hero-hint span {
@@ -396,6 +408,29 @@
   color: #9a7f68;
   font-size: 13px;
   font-weight: 700;
+}
+
+/* As a button: the clickable way on to the next stop. */
+button.stop-next {
+  padding: 8px 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button.stop-next:hover {
+  color: #c0803e;
+}
+
+button.stop-next:focus-visible,
+.hero-hint:focus-visible {
+  outline: 2px solid #e9a55a;
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .pf-result {
@@ -1047,8 +1082,6 @@
   .stop-card { max-height: 56vh; max-height: 56dvh; padding-top: 14px; }
   .stop-card .pf-media { aspect-ratio: 5 / 2; margin-bottom: 10px; }
   .stop-card .pf-card-foot { margin-top: 12px; padding-top: 10px; }
-  /* During the tour a swipe that starts on a card goes on to scroll the story. */
-  html.scroll-mode .pf-card { overscroll-behavior: auto; }
   .pf-close { width: 38px; height: 38px; top: 10px; right: 10px; }
   .pf-link { padding: 9px 14px; }
   .dlg { gap: 10px; padding: 11px 12px; border-radius: 18px; }

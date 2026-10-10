@@ -1,30 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useStoryStore } from '../../store/useStoryStore'
 import { CONTACT } from '../../story/projects'
-
-/** Pixels of scrolling after which the hero gets out of the way. */
-const AWAY_PX = 24
+import { stepBy } from '../../story/scroll'
 
 /**
- * Top of the page: whose island this is, and that scrolling is how you sail in.
- * Fades out as soon as the visitor scrolls, and comes back at the top.
+ * The start of the story: whose island this is, and that scrolling is how you
+ * sail in (the hint is a button too). Out of the way once the story has left
+ * its first stop, back when the visitor returns to it.
  */
 export function Hero() {
-  const [away, setAway] = useState(() => window.scrollY > AWAY_PX)
-  useEffect(() => {
-    const onScroll = () => setAway(window.scrollY > AWAY_PX)
-    // A returning visitor's page opens further down, before this listens.
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  const away = useStoryStore((s) => s.step > 0)
 
   return (
     <header className={`hero${away ? ' away' : ''}`} aria-hidden={away}>
       <h1>{CONTACT.name}</h1>
       <p className="hero-role">{CONTACT.role}</p>
-      <p className="hero-hint">
+      <button className="hero-hint" tabIndex={away ? -1 : 0} onClick={() => stepBy(1)}>
         Scroll to sail in <span aria-hidden>↓</span>
-      </p>
+      </button>
     </header>
   )
 }
