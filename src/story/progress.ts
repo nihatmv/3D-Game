@@ -6,7 +6,8 @@ import { TOUR } from './quests'
  * rebuilds from them (placeLandmark), and free-play edits are not kept.
  */
 const KEY = 'island-progress'
-const VERSION = 1
+/** 2: the scroll tour; saves from the click tour start over. */
+const VERSION = 2
 
 /** The saved stops, in tour order, as far as they run unbroken (quests are done in order). */
 export function loadProgress(): string[] {

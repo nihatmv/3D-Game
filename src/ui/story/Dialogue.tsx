@@ -1,15 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
+import { useEffect, useState } from 'react'
+import { useStoryStore } from '../../store/useStoryStore'
 import { TOUR } from '../../story/quests'
-import { useTouchScreen } from '../../hooks/useTouchScreen'
 import { VISITOR } from '../../visitor'
 import { PirateAvatar } from './PirateAvatar'
 import { bindShipBubble } from './shipBubble'
 
 const GREETING = VISITOR ? `Ahoy, ${VISITOR} crew!` : 'Ahoy!'
-const INTRO = `${GREETING} We’ve landed on a bare island. Show us where to build: every landmark you raise shows a piece of its builder’s work.`
-
-const WELCOME_BACK = `${VISITOR ? `Welcome back, ${VISITOR} crew!` : 'Welcome back!'} Your landmarks are still standing. Let’s pick up where we left off.`
+const INTRO = `${GREETING} We’ve landed on a bare island. Keep scrolling and we’ll build it up: every landmark we raise shows a piece of its builder’s work.`
 
 const SUNSET = 'The island is finished, and look at that sky!'
 
@@ -28,60 +25,38 @@ function useBesideShip() {
 }
 
 /**
- * The captain's speech: intro, current task, praise and the sunset (silent after;
- * the HUD's Get in touch takes over). The intro and the
- * praise move on by themselves (useTourDirector); tasks are one click on the glow.
+ * The captain's speech, picked by where the scroll is: the greeting once the
+ * ship has landed, each stop's task while the crew walks there and builds, and
+ * the sunset line at the end. Silent while a card is up (it carries his line)
+ * and in free play.
  * `ship` floats beside the ship (wide screens); `toolbar` sits above the tools (phones).
  * Both are mounted and each renders only where it belongs.
  */
 export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
   const beside = useBesideShip()
   const phase = useStoryStore((s) => s.phase)
-  const shipState = useStoryStore((s) => s.shipState)
-  const questIndex = useStoryStore((s) => s.questIndex)
-  const lastDone = useStoryStore((s) => s.lastDone)
-  const quest = useStoryStore(selectActiveQuest)
-  const building = useStoryStore((s) => s.building)
+  const beat = useStoryStore((s) => s.beat)
   const cardOpen = useStoryStore((s) => s.openCard !== null)
-  const { startQuests } = useStoryStore.getState()
-  const touch = useTouchScreen()
 
   let line: string
   let key: string
-  let actions: ReactNode
   let step: string | null = null
+  // At a stop the camera is close on the site: he speaks from where its card will come up, not from the ship.
+  let atShip = true
 
-  // A card is the focus: the tour's cards carry the captain's line themselves.
-  if (cardOpen) {
+  if (cardOpen || phase === 'done') {
     return null
-  } else if (phase === 'intro') {
-    // Wait until the ship has landed before the captain speaks.
-    if (shipState === 'arriving') return null
-    line = questIndex > 0 ? WELCOME_BACK : INTRO
-    key = 'intro'
-    actions = (
-      <button className="dlg-btn primary" onClick={startQuests}>
-        Let’s go →
-      </button>
-    )
-  } else if (lastDone) {
-    // Flying home after Continue: the next task appears in a moment.
-    return null
-  } else if (quest) {
-    line = quest.dialogue
-    key = `quest-${quest.id}`
-    step = `${questIndex + 1} of ${TOUR.length}`
-    actions = (
-      <>
-        <span className="dlg-cue">
-          {building ? 'Building…' : `👆 ${touch ? 'Tap' : 'Click'} the glowing spot`}
-        </span>
-      </>
-    )
-  } else if (phase === 'ending') {
+  } else if (beat.part === 'gather' || beat.part === 'sunset') {
     line = SUNSET
     key = 'sunset'
-    actions = null
+  } else if (beat.part === 'land') {
+    line = INTRO
+    key = 'intro'
+  } else if ((beat.part === 'walk' || beat.part === 'build') && TOUR[beat.stop]) {
+    line = TOUR[beat.stop].dialogue
+    key = `quest-${TOUR[beat.stop].id}`
+    step = `${beat.stop + 1} of ${TOUR.length}`
+    atShip = false
   } else {
     return null
   }
@@ -97,15 +72,18 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
           Captain{step && <span className="dlg-step"> · {step}</span>}
         </div>
         <p className="dlg-line">{line}</p>
-        {actions && <div className="dlg-actions">{actions}</div>}
       </div>
     </div>
   )
-  return placement === 'ship' ? (
-    <div className="dlg-ship" ref={bindShipBubble}>
+  if (placement !== 'ship') return box
+  return atShip ? (
+    // Keyed apart: shipBubble styles its wrapper by hand, which must not leak into the other one.
+    <div className="dlg-ship" key="ship" ref={bindShipBubble}>
       {box}
     </div>
   ) : (
-    box
+    <div className="dlg-side" key="side">
+      {box}
+    </div>
   )
 }

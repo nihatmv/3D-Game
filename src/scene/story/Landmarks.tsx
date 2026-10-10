@@ -24,29 +24,19 @@ import { demoOf, playCue, useDemoStore } from '../../story/demos'
 import { HALF } from '../../world/constants'
 import { PROJECTS } from '../../story/projects'
 import { QUESTS, type LandmarkKind, type Quest } from '../../story/quests'
+import { riseOf } from '../../story/scrollDirector'
 import { ProjectMedia } from '../../ui/story/ProjectBody'
+import { makeBuildMaterial } from '../buildMaterial'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { tod } from '../timeOfDay'
 import { emit } from '../puffs'
 import { LAMP_R, LAMP_Y, PIER_DECK_Y, PIER_LENGTH, isScenery, landmarkGeometry } from './landmarkGeometry'
 import { setLandmarkHovered } from './landmarkHover'
 
-const BUILD_MS = 900
-/** The tree grows from a sapling, more slowly than the other landmarks pop up, mostly after the camera lands. */
-const TREE_GROW_MS = 2000
-const TREE_DELAY_MS = 400
-
 const SONG_ID = demoOf('song')?.projectId
 
 /** Keep in-world labels under the story cards (z-index 3). */
 const LABEL_Z: [number, number] = [2, 0]
-
-/** easeOutBack: 0 -> overshoot -> 1. */
-function popCurve(t: number): number {
-  const c1 = 1.7
-  const u = t - 1
-  return 1 + (c1 + 1) * u * u * u + c1 * u * u
-}
 
 /** Two soft light cones sweeping around the lamp (hidden on slow machines). */
 function LighthouseBeam() {
@@ -182,45 +172,33 @@ function LakeHitArea({ quest, at }: { quest: Quest; at: Placement }) {
 }
 
 function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
-  const group = useRef<Group>(null)
-  const start = useRef(performance.now())
+  const body = useRef<Mesh>(null)
+  const life = useRef<Group>(null)
+  const risen = useRef(-1)
   const geometry = landmarkGeometry(quest.landmark)
+  const { material, progress } = useMemo(makeBuildMaterial, [])
+  useEffect(() => () => material.dispose(), [material])
   const openProject = useStoryStore((s) => s.openProject)
   const [hovered, setHovered] = useState(false)
-  // Outside the tour only: there a click builds instead of opening a card.
+  // Outside the tour only: there the cards come with the scroll.
   const canPreview = useStoryStore((s) => s.openCard === null && !isTourActive(s))
 
-  // Celebrate: sparkles where it rises (along the deck for the pier).
-  useEffect(() => {
-    const top = quest.landmark === 'lighthouse' ? LAMP_Y : 0.6
-    if (quest.landmark === 'pier') {
-      for (let k = 0; k < 3; k++) emit('sparkle', at.x + PIER_DIR * (k + 0.5) * (PIER_LENGTH / 3), at.y + 0.4, at.z, 10)
-    } else {
-      emit('sparkle', at.x, at.y + top, at.z, 22)
-    }
-    requestShadowUpdate()
-  }, [quest.landmark, at])
-
+  // It is put together piece by piece with the scroll (and taken apart with it), in the
+  // material's shader; nothing to do while the scroll rests.
   useFrame(() => {
-    const g = group.current
-    if (!g) return
-    if (quest.landmark === 'bigTree') {
-      // Sapling to full tree: shoots up first, then fills out.
-      const t = Math.max(0, Math.min(1, (performance.now() - start.current - TREE_DELAY_MS) / TREE_GROW_MS))
-      if (t < 1) {
-        const xz = 0.25 + 0.75 * (1 - (1 - t) ** 3)
-        g.scale.set(xz, 0.12 + 0.88 * popCurve(t * t), xz)
-        wake(200)
-        requestShadowUpdate()
-        return
-      }
-    }
-    const t = Math.min(1, (performance.now() - start.current) / BUILD_MS)
-    g.scale.setScalar(Math.max(0.001, t < 1 ? popCurve(t) : 1))
-    if (t < 1) {
-      wake(200)
-      requestShadowUpdate()
-    }
+    const t = riseOf(quest.id)
+    const was = risen.current
+    if (t === was) return
+    risen.current = t
+    progress.value = t
+    const done = t >= 1
+    if (done === was >= 1 && was >= 0) return
+    // Finished (or no longer): its shadow, and what lives on it (the lamp's beam, ripples, butterflies), come and go in one step.
+    if (body.current) body.current.castShadow = done
+    if (life.current) life.current.visible = done
+    requestShadowUpdate()
+    // Celebrate the last piece going on (not a landmark found standing on load).
+    if (done && was >= 0) emit('sparkle', at.x, at.y + (quest.landmark === 'lighthouse' ? LAMP_Y : 0.6), at.z, 22)
   })
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => e.stopPropagation()
@@ -233,16 +211,14 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
     if (e.button !== 0) return
     // Cue demo: the pond "listens" whenever it's clicked, in the tour too.
     if (quest.landmark === 'pondRipples' && SONG_ID) playCue()
-    // During the tour the cards open on their own; clicking a landmark does nothing.
+    // During the tour the cards come with the scroll; clicking a landmark does nothing.
     if (isTourActive(useStoryStore.getState()) || !quest.projectId) return
     openProject(quest.projectId, at)
   }
 
   return (
     <group
-      ref={group}
       position={[at.x, at.y, at.z]}
-      scale={0.001}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onClick={onClick}
@@ -261,14 +237,14 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
       }}
     >
       {/* Hidden meshes aren't drawn but still take raycasts (the scenery's click box). */}
-      <mesh geometry={geometry} castShadow receiveShadow visible={!isScenery(quest.landmark)}>
-        <meshLambertMaterial vertexColors flatShading />
-      </mesh>
-      {quest.landmark === 'lighthouse' && <LighthouseBeam />}
-      {quest.landmark === 'pondRipples' && <PondRipples />}
+      <mesh ref={body} geometry={geometry} material={material} receiveShadow visible={!isScenery(quest.landmark)} />
+      <group ref={life} visible={false}>
+        {quest.landmark === 'lighthouse' && <LighthouseBeam />}
+        {quest.landmark === 'pondRipples' && <PondRipples />}
+        {quest.landmark === 'pondRipples' && SONG_ID && <SongBubble />}
+        {quest.landmark === 'bigTree' && <GroveLife />}
+      </group>
       {quest.landmark === 'pondRipples' && <LakeHitArea quest={quest} at={at} />}
-      {quest.landmark === 'pondRipples' && SONG_ID && <SongBubble />}
-      {quest.landmark === 'bigTree' && <GroveLife />}
       {hovered && canPreview && <ProjectPreview quest={quest} />}
     </group>
   )
@@ -420,6 +396,11 @@ function DockFlag({ pier }: { pier: Placement }) {
 
 /** Every built landmark, each one clickable to reopen its project card. */
 export function Landmarks() {
+  // Make every landmark's geometry while the ship is still sailing in, so none of them stalls the scroll when its turn comes.
+  useEffect(() => {
+    const id = setTimeout(() => QUESTS.forEach((q) => landmarkGeometry(q.landmark)), 600)
+    return () => clearTimeout(id)
+  }, [])
   const built = useStoryStore((s) => s.built)
   const placed = useStoryStore((s) => s.placed)
   const pier = findPier(placed, QUESTS)

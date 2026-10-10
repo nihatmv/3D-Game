@@ -6,6 +6,7 @@ import {
   CircleGeometry,
   Color,
   DoubleSide,
+  Group,
   IcosahedronGeometry,
   Mesh,
   ShaderMaterial,
@@ -14,6 +15,7 @@ import {
 } from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { useIslandStore } from '../store/useIslandStore'
+import { riseOfKind } from '../story/scrollDirector'
 import { PALETTE, tileMin, topY } from '../world/constants'
 import { HIGHLAND, HIGHLAND_X, HIGHLAND_Z, DECOR_FALLS } from '../world/decor'
 import { idx } from '../world/grid'
@@ -318,10 +320,22 @@ export function Waterfall() {
     [sheet, foam, mist, spring, mats],
   )
 
+  const root = useRef<Group>(null)
+  const fall = useRef<Group>(null)
+  const landing = useRef<Group>(null)
   const mistMesh = useRef<Mesh>(null)
+  const flowing = useRef(-1)
   const lastTod = useRef(-1)
   useFrame((_, dt) => {
     for (const m of Object.values(mats)) m.uniforms.uTime.value += dt
+    // The water comes over the lip and down with the scroll; foam and mist once it lands.
+    const t = riseOfKind('falls')
+    if (t !== flowing.current) {
+      flowing.current = t
+      if (root.current) root.current.visible = t > 0
+      if (fall.current) fall.current.scale.y = Math.max(0.001, t)
+      if (landing.current) landing.current.visible = t >= 0.9
+    }
     if (mistMesh.current) mistMesh.current.visible = !isLowPower()
     if (tod.version !== lastTod.current) {
       lastTod.current = tod.version
@@ -334,11 +348,18 @@ export function Waterfall() {
 
   // Not pickable: clicks go through to the tiles (which are locked anyway).
   return (
-    <group>
-      <mesh geometry={sheet} material={mats.sheet} renderOrder={3} raycast={() => null} />
-      <mesh geometry={foam} material={mats.foam} renderOrder={3} raycast={() => null} />
+    <group ref={root} visible={false}>
+      {/* Scaled about the lip, so the sheet grows downward from it. */}
+      <group position-y={TOP_Y}>
+        <group ref={fall} scale-y={0.001}>
+          <mesh geometry={sheet} material={mats.sheet} position-y={-TOP_Y} renderOrder={3} raycast={() => null} />
+        </group>
+      </group>
       <mesh geometry={spring} material={mats.spring} renderOrder={2} raycast={() => null} />
-      <mesh ref={mistMesh} geometry={mist} material={mats.mist} renderOrder={4} raycast={() => null} />
+      <group ref={landing} visible={false}>
+        <mesh geometry={foam} material={mats.foam} renderOrder={3} raycast={() => null} />
+        <mesh ref={mistMesh} geometry={mist} material={mats.mist} renderOrder={4} raycast={() => null} />
+      </group>
     </group>
   )
 }

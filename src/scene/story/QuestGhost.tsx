@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, Group, MeshBasicMaterial, ShaderMaterial } from 'three'
 import { useIslandStore } from '../../store/useIslandStore'
 import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
-import { runQuestBuild } from '../../story/questBuild'
 import { tilesInArea, type Area } from '../../story/quests'
 import { HALF, SEA_Y, surfaceY } from '../../world/constants'
 import { stackHeight } from '../../world/stones'
@@ -63,17 +61,17 @@ function areaStack(a: Area): number {
 }
 
 const BEAM_H = 5
-/** Touch screens say "Tap", everything else "Click". */
-const TAP = window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
 /**
- * Glowing target over the active quest's area: a ring, a soft light column and
- * a bobbing marker. It is the tour's only build button: one click plays the
- * whole task (runQuestBuild).
+ * Glow over the stop the crew is heading to or starting on: a ring, a soft
+ * light column and a bobbing marker. It only marks the spot (the scroll does
+ * the building) and fades once the landmark is placed.
  */
 export function QuestGhost() {
-  const quest = useStoryStore(selectActiveQuest)
-  const building = useStoryStore((s) => s.building)
+  const quest = useStoryStore((s) => {
+    const q = selectActiveQuest(s)
+    return q && !s.built.includes(q.id) ? q : null
+  })
   const terrainVersion = useIslandStore((s) => s.terrainVersion)
   const stoneVersion = useIslandStore((s) => s.stoneVersion)
   const group = useRef<Group>(null)
@@ -96,10 +94,11 @@ export function QuestGhost() {
     [],
   )
   useEffect(() => () => beam.dispose(), [beam])
-  // Leave no pointer cursor behind when the target fades out mid-hover.
+
+  // Fade in afresh at each new spot.
   useEffect(() => {
-    if (!quest || building) document.body.style.cursor = ''
-  }, [quest, building])
+    material.uniforms.uOpacity.value = 0
+  }, [material, quest])
 
   const top = useMemo(() => (quest ? areaTop(quest.area) : 0), [quest, terrainVersion])
   const markerBase = useMemo(() => (quest ? 1.8 + areaStack(quest.area) : 0), [quest, stoneVersion])
@@ -109,8 +108,7 @@ export function QuestGhost() {
     if (!g) return
     const t = state.clock.elapsedTime
     material.uniforms.uTime.value = t
-    const target = quest && !building ? 1 : 0
-    const o = material.uniforms.uOpacity.value + (target - material.uniforms.uOpacity.value) * (1 - Math.exp(-dt * 6))
+    const o = material.uniforms.uOpacity.value + (1 - material.uniforms.uOpacity.value) * (1 - Math.exp(-dt * 6))
     material.uniforms.uOpacity.value = o
     g.visible = o > 0.01
     beam.opacity = o * (0.3 + 0.1 * Math.sin(t * 3.2))
@@ -121,48 +119,24 @@ export function QuestGhost() {
     }
   })
 
-  if (!quest) return <group ref={group} visible={false} />
+  if (!quest) return null
   const { x, z, r } = quest.area
   const size = (r + 0.5) * 2
 
-  const onClick = (e: ThreeEvent<MouseEvent>) => {
-    e.stopPropagation()
-    if (e.button === 0) runQuestBuild(quest)
-  }
-
   return (
-    <group
-      ref={group}
-      position={[x - HALF + 0.5, top + 0.04, z - HALF + 0.5]}
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={onClick}
-      onPointerOver={(e) => {
-        e.stopPropagation()
-        if (!building) document.body.style.cursor = 'pointer'
-      }}
-      onPointerOut={() => (document.body.style.cursor = '')}
-    >
-      {/* The ring doubles as the click target. */}
-      <mesh rotation-x={-Math.PI / 2} material={material} renderOrder={4}>
+    <group ref={group} key={quest.id} position={[x - HALF + 0.5, top + 0.04, z - HALF + 0.5]}>
+      <mesh rotation-x={-Math.PI / 2} material={material} renderOrder={4} raycast={() => null}>
         <planeGeometry args={[size, size]} />
       </mesh>
       <mesh position-y={BEAM_H / 2} material={beam} renderOrder={5} raycast={() => null}>
         <cylinderGeometry args={[r * 0.55, r * 0.75, BEAM_H, 20, 1, true]} />
       </mesh>
       <group ref={marker}>
-        <mesh rotation-x={Math.PI} scale={[0.36, 0.56, 0.36]}>
+        <mesh rotation-x={Math.PI} scale={[0.36, 0.56, 0.36]} raycast={() => null}>
           <octahedronGeometry args={[1, 0]} />
           <meshLambertMaterial color="#ffc861" emissive="#f0a040" emissiveIntensity={0.9} flatShading />
         </mesh>
       </group>
-      {/* A screen-space call to action nobody can miss; it builds on click too. */}
-      {!building && (
-        <Html position-y={markerBase + 1.1} center zIndexRange={[2, 0]}>
-          <button className="quest-cta" onClick={() => runQuestBuild(quest)}>
-            👆 {TAP ? 'Tap' : 'Click'} here
-          </button>
-        </Html>
-      )}
     </group>
   )
 }

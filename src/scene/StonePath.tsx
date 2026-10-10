@@ -1,17 +1,19 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { Color, CylinderGeometry, InstancedMesh, MeshLambertMaterial, Object3D } from 'three'
 import { useIslandStore } from '../store/useIslandStore'
 import { HALF, SEA_Y } from '../world/constants'
 import { DECOR_PATH } from '../world/decor'
 import { hash2 } from '../world/grid'
 import { groundAt, type TerrainField } from '../world/terrainField'
+import { riseOfKind } from '../story/scrollDirector'
 import { requestShadowUpdate } from './perf'
 
 /**
  * The stone path from the cabin to the beach (DECOR_PATH): flat flagstones
  * that follow the ground, and little stone stairs wherever it drops a level.
  * One instanced mesh, laid out once (its tiles are locked, so the ground under
- * it never changes).
+ * it never changes). It is laid stone by stone as the cabin rises with the scroll.
  */
 
 /** Gap between flagstones along the path, and how far the walk samples look for drops. */
@@ -139,6 +141,15 @@ export function StonePath() {
     m.computeBoundingSphere()
     requestShadowUpdate()
   }, [stones])
+
+  const laid = useRef(-1)
+  useFrame(() => {
+    const m = mesh.current
+    const t = riseOfKind('cabin')
+    if (!m || t === laid.current) return
+    laid.current = t
+    m.count = Math.round(stones.length * t)
+  })
 
   return <instancedMesh ref={mesh} args={[geometry, material, stones.length]} receiveShadow raycast={() => null} />
 }

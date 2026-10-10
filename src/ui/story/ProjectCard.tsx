@@ -1,30 +1,31 @@
-import { useStoryStore } from '../../store/useStoryStore'
+import { isTourActive, useStoryStore } from '../../store/useStoryStore'
 import { CONTACT, EDUCATION, projectById } from '../../story/projects'
-import { QUESTS } from '../../story/quests'
-import { PirateAvatar } from './PirateAvatar'
 import { ContactLinks, CvLink, Portrait, ProjectGallery, ProjectLinks, ProjectMedia, ProjectResult, ShippedList, StackChips } from './ProjectBody'
 import { ProjectDemo } from './ProjectDemo'
 
 /**
- * The card for one project (or the contact card), in the middle of the screen
- * beside its landmark (CameraRig frames the landmark to the left). In the tour
- * it carries the captain's line and a Continue button that flies the camera
- * home and shows the next task.
+ * The full card for one project (or the contact card), in the middle of the
+ * screen beside its landmark (CameraRig frames the landmark to the left).
+ * Opened from a stop's compact card (Details) or by clicking a landmark in
+ * free play. The contact card also comes up by itself at the end of the scroll,
+ * with the way into free play.
  */
 export function ProjectCard() {
   const openCard = useStoryStore((s) => s.openCard)
-  const lastDone = useStoryStore((s) => s.lastDone)
-  const phase = useStoryStore((s) => s.phase)
   const closeCard = useStoryStore((s) => s.closeCard)
-  const autoBuild = useStoryStore((s) => s.autoBuild)
-  if (!openCard) return null
+  const explore = useStoryStore((s) => s.explore)
+  // The end of the tour: the scroll brings the contact card up, and scrolling back takes it away.
+  const ended = useStoryStore((s) => isTourActive(s) && s.beat.part === 'contact' && !s.openCard)
+  if (!openCard && !ended) return null
 
-  if (openCard === 'contact') {
+  if (openCard === 'contact' || ended) {
     return (
       <aside className="pf-card pf-contact-card" key="contact" aria-label="Contact">
-        <button className="pf-close" onClick={closeCard} aria-label="Close">
-          ✕
-        </button>
+        {!ended && (
+          <button className="pf-close" onClick={closeCard} aria-label="Close">
+            ✕
+          </button>
+        )}
         <Portrait className="pf-photo" />
         <div className="pf-eyebrow">The ship has docked</div>
         <h2>{CONTACT.name}</h2>
@@ -36,34 +37,25 @@ export function ProjectCard() {
           </p>
         )}
         <ContactLinks />
+        {ended && (
+          <div className="pf-card-foot">
+            <span className="stop-next">Or stay a while</span>
+            <button className="pf-continue" onClick={explore}>
+              Explore the island
+            </button>
+          </div>
+        )}
       </aside>
     )
   }
 
-  const project = projectById(openCard)
+  const project = openCard ? projectById(openCard) : undefined
   if (!project) return null
-  // The card the tour just raised (not one reopened from the island or the list).
-  const done = lastDone ? QUESTS.find((q) => q.id === lastDone && q.projectId === openCard) : undefined
-  // In "Build it all" the tour director closes tour cards itself, so the
-  // visitor gets no Continue or ✕ to press.
-  const manual = !(done && autoBuild)
-  const continueLabel = !done ? 'Close' : phase === 'questing' ? 'Continue →' : 'Finish the tour →'
-
   return (
     <aside className="pf-card" key={project.id} aria-label={project.title}>
-      {manual && (
-        <button className="pf-close" onClick={closeCard} aria-label="Close">
-          ✕
-        </button>
-      )}
-      {done && (
-        <div className="pf-captain">
-          <span className="pf-captain-avatar" aria-hidden>
-            <PirateAvatar />
-          </span>
-          <p>{done.doneLine}</p>
-        </div>
-      )}
+      <button className="pf-close" onClick={closeCard} aria-label="Close">
+        ✕
+      </button>
       {project.shipped?.length ? (
         <ShippedList project={project} />
       ) : project.gallery?.length ? (
@@ -80,13 +72,9 @@ export function ProjectCard() {
       <ProjectLinks project={project} />
       <div className="pf-card-foot">
         <CvLink />
-        {manual ? (
-          <button className="pf-continue" onClick={closeCard} autoFocus>
-            {continueLabel}
-          </button>
-        ) : (
-          <span className="pf-auto-next">⚡ Building on…</span>
-        )}
+        <button className="pf-continue" onClick={closeCard} autoFocus>
+          Close
+        </button>
       </div>
     </aside>
   )

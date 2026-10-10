@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { MOUSE, MathUtils, PerspectiveCamera, TOUCH, Vector3 } from 'three'
@@ -8,8 +8,16 @@ import { heightAt } from '../world/grid'
 import { useIslandStore } from '../store/useIslandStore'
 import { isTourActive, useStoryStore } from '../store/useStoryStore'
 import type { Placement } from '../story/landmarks'
-import { FLY_MS } from '../story/useTourDirector'
+import { TOUR } from '../story/quests'
+import { scroll } from '../story/scroll'
+import { beatAt } from '../story/timeline'
 import { wake } from './perf'
+
+/** How far through the contact stretch the camera is back at the home view. */
+const PULL_BACK_BY = 0.5
+
+/** Free play: camera flight to a landmark and back. */
+const FLY_MS = 1000
 
 const TARGET_MIN = new Vector3(-HALF + 2, 0.5, -HALF + 2)
 const TARGET_MAX = new Vector3(HALF - 2, 0.5, HALF - 2)
@@ -37,6 +45,8 @@ function fitDistance(aspect: number) {
 const SHEET_MAX_WIDTH = 640
 
 type Pose = { pos: Vector3; target: Vector3 }
+/** The tour's views: the whole island, and a close-up of each stop. */
+type TourPoses = { home: Pose; stops: Pose[]; cabin: Pose }
 type Flight = { from: Pose; to: Pose; start: number }
 
 const UP = new Vector3(0, 1, 0)
@@ -81,8 +91,12 @@ function focusPose(at: Placement, home: Pose, camera: PerspectiveCamera, width: 
  * for the tools. On touch, one finger is for the tools and two fingers turn and
  * zoom. Polar angle is clamped just above the horizon, low enough to look up
  * at the sun or moon but never under water.
- * Locked during the tour (the framing is fixed); free play unlocks it.
- * When the story sets `focus`, it flies to that landmark (FLY_MS) and back home after.
+ * Locked during the tour, where the view follows the scroll instead: the whole
+ * island while the ship comes in, then a close-up of each stop, panning to the
+ * next as the crew walks there, over to the cabin for the sunset, and back out
+ * for the contact card.
+ * In free play, when the story sets `focus`, it flies to that
+ * landmark (FLY_MS) and back to where it was after.
  */
 export function CameraRig() {
   const ref = useRef<OrbitControlsImpl>(null)
@@ -94,6 +108,19 @@ export function CameraRig() {
   const focus = useStoryStore((s) => s.focus)
   const home = useRef<Pose | null>(null)
   const flight = useRef<Flight | null>(null)
+
+  // Each stop is framed where its card leaves room, from the quest's spot (known before anything is built there).
+  const tour = useMemo<TourPoses>(() => {
+    const home = { pos: HOME_TARGET.clone().addScaledVector(START.clone().normalize(), distance), target: HOME_TARGET.clone() }
+    const frame = (q: (typeof TOUR)[number], card: boolean) => {
+      const at = { tile: 0, x: q.area.x - HALF + 0.5, y: 0, z: q.area.z - HALF + 0.5 }
+      return focusPose(at, home, camera as PerspectiveCamera, width, height, card)
+    }
+    const cabin = TOUR.find((q) => q.landmark === 'cabin')
+    // The sunset is watched at the cabin, in the middle of the screen (no card beside it).
+    return { home, stops: TOUR.map((q) => frame(q, true)), cabin: cabin ? frame(cabin, false) : home }
+  }, [camera, width, height, distance])
+  const shown = useRef<{ value: number; tour: TourPoses | null }>({ value: -1, tour: null })
 
   // Fly to the focused landmark, or back to where the visitor was looking before.
   useEffect(() => {
@@ -112,10 +139,51 @@ export function CameraRig() {
     // Only a focus change starts a flight; resizing mid-card keeps the current framing.
   }, [focus, camera])
 
+  // Free play starts from the whole-island view, wherever the tour's camera was when "Explore the island" was pressed.
+  const toured = useRef(touring)
+  useEffect(() => {
+    const c = ref.current
+    if (c && toured.current && !touring) {
+      flight.current = { from: { pos: camera.position.clone(), target: c.target.clone() }, to: tour.home, start: performance.now() }
+      wake(FLY_MS + 200)
+    }
+    toured.current = touring
+    // Only leaving the tour starts this flight.
+  }, [touring, camera])
+
   useFrame(() => {
     const f = flight.current
     const c = ref.current
-    if (!f || !c) return
+    if (!c) return
+    if (isTourActive()) {
+      // Nothing to do while the scroll rests.
+      if (shown.current.value === scroll.value && shown.current.tour === tour) return
+      shown.current = { value: scroll.value, tour }
+      const { seg, t } = beatAt(scroll.value)
+      const stop = tour.stops[seg.stop]
+      let from = tour.home
+      let to = tour.home
+      if (seg.part === 'walk') {
+        from = tour.stops[seg.stop - 1] ?? tour.home
+        to = stop
+      } else if (seg.part === 'build' || seg.part === 'card') {
+        from = to = stop
+      } else if (seg.part === 'gather') {
+        from = tour.stops[tour.stops.length - 1]
+        to = tour.cabin
+      } else if (seg.part === 'sunset') {
+        from = to = tour.cabin
+      } else if (seg.part === 'contact') {
+        from = tour.cabin
+      }
+      // Back out to the whole island early in the last stretch, so the contact card has it behind it.
+      const e = easeInOutCubic(seg.part === 'contact' ? Math.min(1, t / PULL_BACK_BY) : t)
+      camera.position.lerpVectors(from.pos, to.pos, e)
+      c.target.lerpVectors(from.target, to.target, e)
+      c.update()
+      return
+    }
+    if (!f) return
     const k = Math.min(1, (performance.now() - f.start) / FLY_MS)
     const e = easeInOutCubic(k)
     camera.position.lerpVectors(f.from.pos, f.to.pos, e)

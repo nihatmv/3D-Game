@@ -1,20 +1,23 @@
 import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Color, DirectionalLight, Fog, HemisphereLight } from 'three'
-import { useStoryStore } from '../store/useStoryStore'
+import { isTourActive, useStoryStore } from '../store/useStoryStore'
+import { scroll } from '../story/scroll'
+import { progressIn, segmentOf } from '../story/timeline'
 import { PALETTE } from '../world/constants'
 import { requestShadowUpdate, wake } from './perf'
-import { setTodHour, tod } from './timeOfDay'
+import { HOUR_GOLDEN, setTodHour, tod } from './timeOfDay'
 
-/** The ending's sunset: hours per second, so day → golden hour takes about 5 s. */
-const SLOW_RATE = 1.1
-/** How fast the light follows the timeline while it's dragged. */
+/** How fast the light follows the timeline while it's dragged, or the scroll through the sunset. */
 const FOLLOW = 10
+const SUNSET = segmentOf('sunset')
 const LIGHT_DISTANCE = 29
 
 /**
  * Sky, fog, and the two lights, set from the time of day (timeOfDay.ts).
- * The timeline is followed quickly; the ending eases into golden hour. The
+ * The hour comes from the story: the visitor's clock (or free play's
+ * timeline), bent toward golden hour as the scroll runs through the sunset at
+ * the end of the tour. The
  * directional light is the sun by day and the moon by night; no extra lights
  * or passes are added.
  */
@@ -26,12 +29,17 @@ export function Lighting() {
   const applied = useRef(-1)
 
   useFrame((_, rawDt) => {
-    const { hour: target, hourSlow } = useStoryStore.getState()
+    const story = useStoryStore.getState()
+    let target = story.hour
+    if (isTourActive(story)) {
+      const k = progressIn(SUNSET, scroll.value)
+      target += (HOUR_GOLDEN - target) * k * k * (3 - 2 * k)
+    }
     if (tod.hour === target && applied.current === tod.version) return
     if (tod.hour !== target) {
       const dt = Math.min(rawDt, 0.25)
       const diff = target - tod.hour
-      const step = hourSlow ? Math.sign(diff) * Math.min(Math.abs(diff), SLOW_RATE * dt) : diff * (1 - Math.exp(-FOLLOW * dt))
+      const step = diff * (1 - Math.exp(-FOLLOW * dt))
       setTodHour(Math.abs(diff - step) < 0.005 ? target : tod.hour + step)
     }
     applied.current = tod.version

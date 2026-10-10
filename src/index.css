@@ -4,13 +4,18 @@
   background: #fbe3c8;
 }
 
+/* The page never scrolls: gestures step the story (story/useStepInput.ts) or, in free play, move the camera. */
 html,
-body,
-#root {
+body {
   margin: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
 }
 
 /* Touch: no page bounce, no grey tap flash, no long-press callout on the canvas. */
@@ -25,3 +30,4 @@ canvas {
   -webkit-touch-callout: none;
   user-select: none;
 }
+

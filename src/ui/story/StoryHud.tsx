@@ -1,13 +1,17 @@
 import { useEffect } from 'react'
-import { useStoryStore } from '../../store/useStoryStore'
+import { isTourActive, useStoryStore } from '../../store/useStoryStore'
+import { projectById } from '../../story/projects'
 import { TOUR } from '../../story/quests'
+import { jumpToStop } from '../../story/scroll'
+import { STOPS, stopOfCard } from '../../story/timeline'
 import { track } from '../../analytics'
 import { clearProgress } from '../../story/progress'
 import { ProjectCard } from './ProjectCard'
+import { StopCard } from './StopCard'
 import { TimeOfDay } from './TimeOfDay'
 import './Story.css'
 
-/** Esc closes the open card (in the tour, that's Continue). */
+/** Esc closes the open full card. */
 function useEscToClose() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -18,25 +22,45 @@ function useEscToClose() {
   }, [])
 }
 
-/** Progress counter, the time-of-day timeline, Build it all and Skip (Get in touch once the tour is over) and the overlays. Skip builds the whole island at once. */
+/**
+ * Progress dots (each jumps to its stop; in free play it opens the stop's
+ * card), Restart, Skip (jumps to the end, which builds the whole island at
+ * once), free play's time-of-day timeline and Get in touch, and the cards.
+ */
 export function StoryHud() {
   useEscToClose()
   const built = useStoryStore((s) => s.built)
-  const phase = useStoryStore((s) => s.phase)
-  const autoBuild = useStoryStore((s) => s.autoBuild)
-  const finished = phase === 'ending' || phase === 'done'
+  const touring = useStoryStore((s) => isTourActive(s))
+  const here = useStoryStore((s) => (isTourActive(s) ? s.beat.stop : -1))
+  const atEnd = useStoryStore((s) => s.beat.part === 'contact')
   const stops = TOUR.filter((q) => built.includes(q.id)).length
+
+  const goTo = (stop: number) => {
+    const story = useStoryStore.getState()
+    const q = TOUR[stop]
+    if (isTourActive(story)) jumpToStop(stopOfCard(stop))
+    else if (q.projectId) story.openProject(q.projectId, story.placed[q.id])
+  }
 
   return (
     <>
       <div className="story-hud">
-        <div className="story-progress" aria-label={`${stops} of ${TOUR.length} landmarks built`}>
-          <span className="story-dots" aria-hidden>
-            {TOUR.map((q) => (
-              <span key={q.id} className={built.includes(q.id) ? 'on' : ''} />
-            ))}
+        <div className="story-progress">
+          <span className="story-dots">
+            {TOUR.map((q, stop) => {
+              const title = (q.projectId && projectById(q.projectId)?.title) || q.id
+              return (
+                <button
+                  key={q.id}
+                  className={`${built.includes(q.id) ? 'on' : ''}${stop === here ? ' here' : ''}`}
+                  title={title}
+                  aria-label={`Go to ${title}`}
+                  onClick={() => goTo(stop)}
+                />
+              )
+            })}
           </span>
-          <span>
+          <span aria-label={`${stops} of ${TOUR.length} landmarks built`}>
             {stops} / {TOUR.length} landmarks
           </span>
         </div>
@@ -57,40 +81,33 @@ export function StoryHud() {
         )}
       </div>
 
-      <TimeOfDay />
+      {!touring && <TimeOfDay />}
 
-      {finished ? (
+      {!touring ? (
         <div className="story-skip">
           <button className="story-btn primary" onClick={() => useStoryStore.getState().openProject('contact')}>
             ✉️ Get in touch
           </button>
         </div>
       ) : (
-        <div className="story-skip">
-          <button
-            className="story-btn"
-            disabled={autoBuild}
-            onClick={() => {
-              track('build_all_clicked')
-              useStoryStore.getState().buildAll()
-            }}
-          >
-            {autoBuild ? '⚡ Building…' : '⚡ Build it all'}
-          </button>
-          <button
-            className="story-btn"
-            onClick={() => {
-              track('skip_clicked')
-              useStoryStore.getState().skipAll()
-            }}
-          >
-            <span>
-              Skip<span className="story-long">, just show me everything</span> →
-            </span>
-          </button>
-        </div>
+        !atEnd && (
+          <div className="story-skip">
+            <button
+              className="story-btn"
+              onClick={() => {
+                track('skip_clicked')
+                jumpToStop(STOPS.length - 1)
+              }}
+            >
+              <span>
+                Skip<span className="story-long">, just show me everything</span> →
+              </span>
+            </button>
+          </div>
+        )
       )}
 
+      <StopCard />
       <ProjectCard />
     </>
   )
