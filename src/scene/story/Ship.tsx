@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group, Vector3 } from 'three'
-import { useStoryStore } from '../../store/useStoryStore'
+import { isTourActive, useStoryStore } from '../../store/useStoryStore'
 import { findPier } from '../../story/landmarks'
 import { QUESTS } from '../../story/quests'
 import { scroll } from '../../story/scroll'
@@ -52,7 +52,8 @@ export function Ship() {
     const t = state.clock.elapsedTime
     const story = useStoryStore.getState()
 
-    const sailed = progressIn(SAIL, scroll.value)
+    // Free play: tied up, wherever the page was left.
+    const sailed = isTourActive(story) ? progressIn(SAIL, scroll.value) : 1
     if (sailed >= 1 && story.shipState === 'arriving') story.setShipState('docked')
     const u = easeOut(sailed)
     path.getPointAt(u, point)

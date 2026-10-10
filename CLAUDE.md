@@ -26,7 +26,7 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
 
 - `src/main.tsx` renders `App` (the 3D island), the only view.
 - `src/visitor.ts`: `?for=acme` personalization (`VISITOR`). `src/analytics.ts`: `track()`, provider chosen by env (see `.env.example`).
-- `index.html` + `vite.config.ts`: plain-HTML loading screen (`hideBoot()` in `src/boot.ts`) and OG tags filled from `CONTACT`. `public/og.png` is a headless capture; re-capture when the island's look changes.
+- `index.html` + `vite.config.ts`: plain-HTML loading screen (`hideBoot()` in `src/boot.ts`) and OG tags filled from `CONTACT`. `public/og.png` is a headless capture (1200×630, `skipAll()`, UI hidden, a name card added by the capture script); re-capture when the island's look or `CONTACT` changes.
 - `src/world/`: pure grid/terrain/tool logic, no React. `decor.ts` holds hand-placed scenery (`HIGHLAND`, `DECOR_FALLS`, `DECOR_CABIN`, `DECOR_PATH`); its tiles are locked, and decor must stay clear of quest areas and the pier row.
 - `src/store/`: `useIslandStore` (typed arrays + version counters, `window.island` in dev) and `useStoryStore` (the story state machine, `window.story` in dev): `phase` intro → questing (the scroll tour, `isTourActive`) → done (free play, entered with `explore()` from the contact card), `beat` = the stretch of the scroll story that is on, `shipState` arriving → docked, `openCard` = the full card, `focus` = landmark the camera flies to (free play only).
 - `src/story/`: content and story logic.
@@ -64,7 +64,7 @@ Both 5-phase plans are done (base game, then the outreach pass: hero, fly-to car
 
 In progress: the crew pass (captain + 5 men land and build the island). Phases 1–4 done (ship lands first, bare island, five stops; crew steps off, runs to each site and hammers; ending at the cabin). Its timing pass is superseded by the scroll pass.
 
-In progress: the scroll pass (the tour driven by page scroll instead of clicks; plan: `~/.claude/plans/hey-i-wanna-turn-merry-simon.md`). Phases 1–2 done (scroll plumbing, ship, hero; stops built by scroll with scrubbed rise and camera, compact cards, captain's lines by beat; the click tour is gone). Phases 3–4 done (the crew walks and hammers with the scroll; scroll-driven sunset and contact card, "Explore the island" into free play, HUD dots that jump to a stop, restore at the last stop). Next: 5 timing to 60–90 s, phones, `og.png`.
+The scroll pass is done too (5 phases: the tour is driven by page scroll instead of clicks; plan: `~/.claude/plans/hey-i-wanna-turn-merry-simon.md`). All timing is the segment lengths at the top of `story/timeline.ts`. Not yet tried on a real phone (address-bar resize, touch scrolling over cards).
 
 ## Updating this file
 

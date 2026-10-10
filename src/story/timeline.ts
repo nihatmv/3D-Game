@@ -11,14 +11,17 @@ export type Part = 'sail' | 'land' | 'walk' | 'build' | 'card' | 'gather' | 'sun
 /** One stretch of the page; `from`/`to` are scroll progress (0..1). `stop` indexes TOUR, -1 outside the stops. */
 export type Segment = { part: Part; stop: number; from: number; to: number }
 
-const SAIL = 1
+// About 10.5 screens in all. At an easy pace (a screen every two seconds or so)
+// that is some 20 s of motion, plus the time spent reading five cards: a tour of 60-90 s.
+// The build gets the most room, so a landmark's rise takes a few turns of the wheel.
+const SAIL = 0.9
 const LAND = 0.5
-const WALK = 0.45
-const BUILD = 0.5
-const CARD = 0.6
+const WALK = 0.4
+const BUILD = 0.65
+const CARD = 0.55
 const GATHER = 0.4
-const SUNSET = 0.6
-const CONTACT = 0.5
+const SUNSET = 0.5
+const CONTACT = 0.4
 
 const lengths: Array<readonly [Part, number, number]> = [
   ['sail', -1, SAIL],

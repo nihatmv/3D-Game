@@ -122,39 +122,6 @@
   opacity: 0.75;
 }
 
-/* The captain's current task wants this tool: a ring that pulses outward
-   (transform/opacity only, so the compositor animates it without repaints). */
-.tool.quest-pulse {
-  background: rgba(255, 231, 184, 0.5);
-}
-
-.tool.quest-pulse::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 2px solid rgba(233, 165, 90, 0.7);
-  pointer-events: none;
-  animation: quest-pulse 1.6s ease-out infinite;
-}
-
-.tool.quest-pulse::after {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  margin-left: -4px;
-  border-radius: 50%;
-  background: #e9a55a;
-}
-
-@keyframes quest-pulse {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(1.18); }
-}
-
 @keyframes tool-bounce {
   0% { transform: scale(1); }
   35% { transform: scale(1.28) rotate(-6deg); }
@@ -228,6 +195,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tool, .tool.active .tool-icon, .toolbar-hint, .tool.quest-pulse::before,
+  .tool, .tool.active .tool-icon, .toolbar-hint,
   .toolbar-wrap.free .toolbar, .toolbar-wrap.free .toolbar-sub { animation: none; transition: none; }
 }
