@@ -85,19 +85,44 @@
 
 .story-dots {
   display: flex;
-  gap: 4px;
+  margin: 0 -4px;
 }
 
-.story-dots span {
+/* Each dot is a button with room around it for a finger. */
+.story-dots button {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.story-dots button::before {
+  content: '';
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: rgba(107, 86, 68, 0.2);
-  transition: background 0.3s;
+  transition:
+    background 0.3s,
+    transform 0.2s;
 }
 
-.story-dots span.on {
+.story-dots button.on::before {
   background: #e9a55a;
+}
+
+.story-dots button.here::before {
+  transform: scale(1.5);
+}
+
+.story-dots button:focus-visible {
+  outline: 2px solid #e9a55a;
+  border-radius: 6px;
 }
 
 /* ---------- Captain dialogue (beside the ship on wide screens, above the toolbar on phones) ---------- */

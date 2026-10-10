@@ -13,9 +13,9 @@ import { beatAt } from './timeline'
  * The ship's crew: the captain (index 0) and five men. During the tour they
  * follow the scroll (scrubCrew): off the ship and onto the beach, on to each
  * building site, hammering through its build, and into a row at the cabin; they
- * walk back when the page scrolls back and stand still when it rests. After the
- * tour they celebrate and stroll around the finished island on their own
- * (stepCrew). Plain mutable state read by scene/story/Crew.tsx, so none of it
+ * walk back when the page scrolls back and stand still when it rests (but for
+ * a short cheer as the sunset begins, stepParty). In free play they stroll
+ * around the finished island on their own (stepCrew). Plain mutable state read by scene/story/Crew.tsx, so none of it
  * costs React renders.
  */
 
@@ -341,7 +341,13 @@ export function scrubCrew(value: number) {
       const to = standsAt('row')
       walkLeg(m, walkLegs('gather', from, to)[k], staggered(t, k, WALK_GAP), from[k].face, to[k].face, back)
     } else {
-      standAt(m, standsAt('row')[k])
+      // In the row for the sunset and the contact card; a cheer (crewParty) runs on its own clock.
+      const st = standsAt('row')[k]
+      const cheer = party > 0
+      const cycle = m.cycle
+      standAt(m, st)
+      m.cheering = cheer
+      if (cheer) m.cycle = cycle
     }
     m.y = footY(m.x, m.z)
   })
@@ -355,10 +361,28 @@ export function scrubCrew(value: number) {
     emit('dust', cx, footY(cx, cz) + 0.15, cz, 5)
   }
   blows = struck
+  // Scrolled back out of the sunset: the cheer is over.
+  if (seg.part !== 'sunset' && seg.part !== 'contact') party = 0
   crewVersion++
 }
 
-/** The tour is over: everyone stands in the row in front of the cabin, whatever the scroll last did with them. */
+/**
+ * The cheer at the cabin, by `dt` seconds: whoever stands in the row jumps
+ * for joy, each at his own pace. Returns true while it lasts (keep rendering
+ * at full rate); it is the only thing the crew does on a clock during the tour.
+ */
+export function stepParty(dt: number): boolean {
+  if (party <= 0) return false
+  party = Math.max(0, party - dt)
+  crew.forEach((m, k) => {
+    m.cheering = party > 0
+    m.cycle = party > 0 ? m.cycle + dt * (7 + (k % 3) * 1.3) : 0
+  })
+  crewVersion++
+  return party > 0
+}
+
+/** Free play begins: everyone stands in the row in front of the cabin, whatever the scroll last did with them. */
 export function gatherCrew(cabin: Placement) {
   wander = false
   rowStands(cabin).forEach((st, k) => {
@@ -369,13 +393,12 @@ export function gatherCrew(cabin: Placement) {
   crewVersion++
 }
 
-/** Seconds of celebrating left: whoever stands still jumps for joy. */
+/** Seconds of celebrating left (stepParty). */
 let party = 0
 
-/** Celebrate for `seconds` (the ending's sunset). */
+/** Celebrate for `seconds` (the sunset begins). */
 export function crewParty(seconds: number) {
   party = seconds
-  crewVersion++
 }
 
 /** Things to walk around, as world x/z and a radius: the lighthouse, the grove, the cabin, the falls. */
@@ -483,20 +506,15 @@ function stroll(m: Mate): boolean {
 const turnTo = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.cos(b - a))
 
 /**
- * After the tour: advance the crew by `dt` seconds (celebrating, then
- * strolling). Returns true while they celebrate (keep rendering at full rate);
- * strolling returns false, as it is happy with the idle frame rate.
+ * Free play: advance the strolling crew by `dt` seconds. Returns false while
+ * they stroll (it is happy with the idle frame rate).
  */
 export function stepCrew(dt: number): boolean {
   let active = false
-  party = Math.max(0, party - dt)
   for (let k = 0; k < crew.length; k++) {
     const m = crew[k]
     if (m.delay > 0) {
       m.delay -= dt
-      // Already ashore: a little jump while he waits.
-      m.cheering = m.shown >= 1 && m.delay > 0
-      m.cycle = m.cheering ? m.cycle + dt * 13 : 0
       active = true
       continue
     }
@@ -529,15 +547,6 @@ export function stepCrew(dt: number): boolean {
       m.cycle += dt * 12
       m.walking = m.path.length > 0
       if (!m.walking) m.cycle = 0
-      busy = true
-    } else if (party > 0) {
-      // Each at his own pace, so they don't jump in step.
-      m.cheering = true
-      m.cycle += dt * (7 + (k % 3) * 1.3)
-      busy = true
-    } else if (m.cheering) {
-      m.cheering = false
-      m.cycle = 0
       busy = true
     } else if (wander) {
       m.rest -= dt

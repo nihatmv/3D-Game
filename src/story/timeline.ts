@@ -6,7 +6,7 @@ import { TOUR } from './quests'
  * scene code. Lengths are in screen heights of scrolling.
  */
 
-export type Part = 'sail' | 'land' | 'walk' | 'build' | 'card' | 'gather' | 'sunset'
+export type Part = 'sail' | 'land' | 'walk' | 'build' | 'card' | 'gather' | 'sunset' | 'contact'
 
 /** One stretch of the page; `from`/`to` are scroll progress (0..1). `stop` indexes TOUR, -1 outside the stops. */
 export type Segment = { part: Part; stop: number; from: number; to: number }
@@ -18,6 +18,7 @@ const BUILD = 0.5
 const CARD = 0.6
 const GATHER = 0.4
 const SUNSET = 0.6
+const CONTACT = 0.5
 
 const lengths: Array<readonly [Part, number, number]> = [
   ['sail', -1, SAIL],
@@ -29,6 +30,7 @@ const lengths: Array<readonly [Part, number, number]> = [
   ]),
   ['gather', -1, GATHER],
   ['sunset', -1, SUNSET],
+  ['contact', -1, CONTACT],
 ]
 
 /** Screen heights of scrolling from the top of the story to its end. */

@@ -27,7 +27,8 @@ function useBesideShip() {
 /**
  * The captain's speech, picked by where the scroll is: the greeting once the
  * ship has landed, each stop's task while the crew walks there and builds, and
- * the sunset line at the end. Silent while a card is up (it carries his line).
+ * the sunset line at the end. Silent while a card is up (it carries his line)
+ * and in free play.
  * `ship` floats beside the ship (wide screens); `toolbar` sits above the tools (phones).
  * Both are mounted and each renders only where it belongs.
  */
@@ -45,7 +46,7 @@ export function Dialogue({ placement }: { placement: 'ship' | 'toolbar' }) {
 
   if (cardOpen || phase === 'done') {
     return null
-  } else if (phase === 'ending' || beat.part === 'gather' || beat.part === 'sunset') {
+  } else if (beat.part === 'gather' || beat.part === 'sunset') {
     line = SUNSET
     key = 'sunset'
   } else if (beat.part === 'land') {

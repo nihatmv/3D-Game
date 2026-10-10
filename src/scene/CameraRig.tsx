@@ -13,7 +13,7 @@ import { scroll } from '../story/scroll'
 import { beatAt } from '../story/timeline'
 import { wake } from './perf'
 
-/** Free play and the ending: camera flight to a landmark and back. */
+/** Free play: camera flight to a landmark and back. */
 const FLY_MS = 1000
 
 const TARGET_MIN = new Vector3(-HALF + 2, 0.5, -HALF + 2)
@@ -43,7 +43,7 @@ const SHEET_MAX_WIDTH = 640
 
 type Pose = { pos: Vector3; target: Vector3 }
 /** The tour's views: the whole island, and a close-up of each stop. */
-type TourPoses = { home: Pose; stops: Pose[] }
+type TourPoses = { home: Pose; stops: Pose[]; cabin: Pose }
 type Flight = { from: Pose; to: Pose; start: number }
 
 const UP = new Vector3(0, 1, 0)
@@ -90,8 +90,9 @@ function focusPose(at: Placement, home: Pose, camera: PerspectiveCamera, width: 
  * at the sun or moon but never under water.
  * Locked during the tour, where the view follows the scroll instead: the whole
  * island while the ship comes in, then a close-up of each stop, panning to the
- * next as the crew walks there, and back out after the last one.
- * In free play and the ending, when the story sets `focus`, it flies to that
+ * next as the crew walks there, over to the cabin for the sunset, and back out
+ * for the contact card.
+ * In free play, when the story sets `focus`, it flies to that
  * landmark (FLY_MS) and back to where it was after.
  */
 export function CameraRig() {
@@ -108,11 +109,13 @@ export function CameraRig() {
   // Each stop is framed where its card leaves room, from the quest's spot (known before anything is built there).
   const tour = useMemo<TourPoses>(() => {
     const home = { pos: HOME_TARGET.clone().addScaledVector(START.clone().normalize(), distance), target: HOME_TARGET.clone() }
-    const stops = TOUR.map((q) => {
+    const frame = (q: (typeof TOUR)[number], card: boolean) => {
       const at = { tile: 0, x: q.area.x - HALF + 0.5, y: 0, z: q.area.z - HALF + 0.5 }
-      return focusPose(at, home, camera as PerspectiveCamera, width, height, true)
-    })
-    return { home, stops }
+      return focusPose(at, home, camera as PerspectiveCamera, width, height, card)
+    }
+    const cabin = TOUR.find((q) => q.landmark === 'cabin')
+    // The sunset is watched at the cabin, in the middle of the screen (no card beside it).
+    return { home, stops: TOUR.map((q) => frame(q, true)), cabin: cabin ? frame(cabin, false) : home }
   }, [camera, width, height, distance])
   const shown = useRef<{ value: number; tour: TourPoses | null }>({ value: -1, tour: null })
 
@@ -152,6 +155,11 @@ export function CameraRig() {
         from = to = stop
       } else if (seg.part === 'gather') {
         from = tour.stops[tour.stops.length - 1]
+        to = tour.cabin
+      } else if (seg.part === 'sunset') {
+        from = to = tour.cabin
+      } else if (seg.part === 'contact') {
+        from = tour.cabin
       }
       const e = easeInOutCubic(t)
       camera.position.lerpVectors(from.pos, to.pos, e)

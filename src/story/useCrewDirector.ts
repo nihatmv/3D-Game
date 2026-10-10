@@ -21,8 +21,8 @@ const obstacles = (placed: Record<string, Placement>): Obstacle[] =>
 
 /**
  * The crew's part outside the scroll: tells them where the pier is, and once
- * the tour is over puts them in the row at the cabin for the sunset, then lets
- * them stroll around the island on their own. During the tour they follow the
+ * free play begins lets them stroll around the island on their own, starting
+ * from the row at the cabin. During the tour they follow the
  * scroll (scrubCrew, called from scene/story/Crew.tsx).
  * Runs on store changes only.
  */
@@ -38,7 +38,7 @@ export function useCrewDirector() {
         docked = true
         setCrewPier(pier, pier.y + DECK_TOP, PIER_LENGTH)
       }
-      if (s.phase !== 'ending' && s.phase !== 'done') return
+      if (s.phase !== 'done') return
       const cabin = QUESTS.find((q) => q.landmark === 'cabin')
       const at = cabin && s.placed[cabin.id]
       if (!at) return
@@ -47,7 +47,7 @@ export function useCrewDirector() {
         gatherCrew(at)
         wake(400)
       }
-      if (s.phase === 'done' && !strolling) {
+      if (!strolling) {
         strolling = true
         crewWander(obstacles(s.placed))
       }

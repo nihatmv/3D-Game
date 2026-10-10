@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, Euler, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three'
 import { isTourActive } from '../../store/useStoryStore'
-import { CREW_SIZE, crew, crewVersion, scrubCrew, stepCrew } from '../../story/crew'
+import { CREW_SIZE, crew, crewVersion, scrubCrew, stepCrew, stepParty } from '../../story/crew'
 import { scroll } from '../../story/scroll'
 import { wake } from '../perf'
 import { HAND, captainHatGeometry, crewClothGeometry, crewFixedGeometry, hammerGeometry } from './crewGeometry'
@@ -50,8 +50,11 @@ export function Crew() {
   const drawn = useRef(0)
   useFrame((_, rawDt) => {
     // The tour puts them where the scroll is; after it they move on their own.
-    if (isTourActive()) scrubCrew(scroll.value)
-    else if (crewVersion > 0 && stepCrew(Math.min(rawDt, 0.25))) wake(200)
+    const dt = Math.min(rawDt, 0.25)
+    if (isTourActive()) {
+      scrubCrew(scroll.value)
+      if (stepParty(dt)) wake(200)
+    } else if (crewVersion > 0 && stepCrew(dt)) wake(200)
     // Version 0: nobody has been placed yet.
     if (crewVersion === 0) return
     if (drawn.current === crewVersion) return

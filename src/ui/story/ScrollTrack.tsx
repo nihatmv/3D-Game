@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { isTourActive, useStoryStore } from '../../store/useStoryStore'
+import { TOUR } from '../../story/quests'
 import { jumpScroll, watchScroll } from '../../story/scroll'
 import { SCREENS, segmentOf } from '../../story/timeline'
 
@@ -24,9 +25,9 @@ export function ScrollTrack() {
   useLayoutEffect(() => {
     history.scrollRestoration = 'manual'
     // A returning visitor picks up at the card of the last stop they built (at the end, if that was all of them).
-    const { questIndex, phase } = useStoryStore.getState()
+    const { questIndex } = useStoryStore.getState()
     const card = questIndex > 0 ? segmentOf('card', questIndex - 1) : null
-    jumpScroll(phase === 'done' ? 1 : card ? (card.from + card.to) / 2 : 0)
+    jumpScroll(questIndex >= TOUR.length ? 1 : card ? (card.from + card.to) / 2 : 0)
     return watchScroll()
   }, [])
 

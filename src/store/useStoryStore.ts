@@ -6,7 +6,8 @@ import { loadProgress, saveProgress } from '../story/progress'
 import { HOUR_GOLDEN, liveHour } from '../scene/timeOfDay'
 import type { Part } from '../story/timeline'
 
-export type StoryPhase = 'intro' | 'questing' | 'ending' | 'done'
+/** intro and questing are the scroll tour; done is free play after it. */
+export type StoryPhase = 'intro' | 'questing' | 'done'
 export type ShipState = 'arriving' | 'docked'
 /** The stretch of the scroll story that is on (timeline.ts); `stop` indexes TOUR, -1 outside the stops. */
 export type Beat = { part: Part; stop: number }
@@ -25,35 +26,29 @@ type StoryState = {
   placed: Record<string, Placement>
   /** Full card currently shown (Details on a stop's card, or a landmark clicked in free play), or null. */
   openCard: CardId | null
-  /** Free play and the ending: landmark the camera flies to (CameraRig), or null for where it was. */
+  /** Free play: landmark the camera flies to (CameraRig), or null for where it was. */
   focus: Placement | null
   shipState: ShipState
-  /** Time of day (hours) that <Lighting/> eases toward; the HUD's timeline sets it. */
+  /** Time of day (hours) that <Lighting/> eases toward; free play's timeline sets it. During the tour the scroll bends it toward sunset at the end. */
   hour: number
-  /** Follow the visitor's clock. Dragging the timeline or the ending's sunset stops it. */
+  /** Follow the visitor's clock. Dragging the timeline stops it. */
   hourLive: boolean
-  /** Ease slowly into `hour` (the ending's sunset) instead of following the timeline. */
-  hourSlow: boolean
 
   /** The scroll moved on to another stretch of the story. Closes an open full card. */
   setBeat: (beat: Beat) => void
   /** The next stop is built: place its landmark and move on. */
   completeQuest: (id: string) => void
-  /** Build everything at once and go to the ending (dev and tests; the HUD's Skip scrolls there instead). */
+  /** Build everything at once and go straight to free play (dev and tests; the HUD's Skip scrolls to the end instead). */
   skipAll: () => void
-  /** Every stop is built and the scroll is past the last one: the timed ending takes over (useEndingDirector). */
-  startEnding: () => void
-  /** Rebuild saved tour stops on load (progress.ts), on top of the pier. Partial: the page opens at the last one's card. All: the finished island at sunset with the contact card, no ending replay. */
+  /** "Explore the island": leave the scroll tour for free play (tools, camera, time of day), at the sunset the tour ended on. */
+  explore: () => void
+  /** Rebuild saved tour stops on load (progress.ts), on top of the pier. The page then opens at the last one's card, or at the end if that was all of them (ScrollTrack). */
   restore: (ids: string[]) => void
   /** Open a full card; with `at`, the camera flies to that landmark too. */
   openProject: (id: CardId, at?: Placement) => void
   /** Close the full card (and fly back, if the camera flew). */
   closeCard: () => void
   setShipState: (s: ShipState) => void
-  /** The tour is done: the sun goes down and the camera flies to the cabin, where the crew gathers (useEndingDirector). */
-  startSunset: () => void
-  /** The story is over: show who built the island. */
-  finishStory: () => void
   setHour: (hour: number) => void
   /** Go back to the visitor's clock, or catch up with it (called every minute). */
   followClock: () => void
@@ -70,7 +65,6 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   shipState: 'arriving',
   hour: liveHour(),
   hourLive: true,
-  hourSlow: false,
 
   setBeat: (beat) => {
     const started = get().phase === 'intro' && beat.part !== 'sail' && beat.part !== 'land'
@@ -94,7 +88,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({
       built: QUESTS.map((q) => q.id),
       questIndex: TOUR.length,
-      phase: 'ending',
+      phase: 'done',
+      hour: HOUR_GOLDEN,
+      hourLive: false,
       openCard: null,
       focus: null,
     })
@@ -104,23 +100,16 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ placed })
   },
 
-  startEnding: () => {
-    const { phase, questIndex } = get()
-    if ((phase === 'intro' || phase === 'questing') && questIndex >= TOUR.length) set({ phase: 'ending', openCard: null, focus: null })
+  explore: () => {
+    if (get().questIndex < TOUR.length) return
+    set({ phase: 'done', hour: HOUR_GOLDEN, hourLive: false, openCard: null, focus: null })
+    track('explore_clicked')
   },
 
   restore: (ids) => {
     if (!ids.length) return
     // Story state first: placing landmarks edits the island.
-    const all = ids.length >= TOUR.length
-    set({
-      built: [...get().built, ...ids],
-      questIndex: ids.length,
-      phase: all ? 'done' : 'questing',
-      openCard: all ? 'contact' : null,
-      focus: null,
-      ...(all ? { hour: HOUR_GOLDEN, hourLive: false } : null),
-    })
+    set({ built: [...get().built, ...ids], questIndex: ids.length, phase: 'questing' })
     const placed = { ...get().placed }
     for (const q of TOUR) if (ids.includes(q.id)) placed[q.id] = placeLandmark(q)
     set({ placed })
@@ -129,15 +118,8 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   openProject: (id, at) => set({ openCard: id, focus: at ?? null }),
   closeCard: () => set({ openCard: null, focus: null }),
   setShipState: (shipState) => set({ shipState }),
-  startSunset: () => {
-    const cabin = QUESTS.find((q) => q.landmark === 'cabin')
-    set({ hour: HOUR_GOLDEN, hourSlow: true, hourLive: false, focus: (cabin && get().placed[cabin.id]) ?? null })
-  },
-  finishStory: () => {
-    set({ phase: 'done', openCard: 'contact', focus: null })
-  },
-  setHour: (hour) => set({ hour, hourSlow: false, hourLive: false }),
-  followClock: () => set({ hour: liveHour(), hourSlow: false, hourLive: true }),
+  setHour: (hour) => set({ hour, hourLive: false }),
+  followClock: () => set({ hour: liveHour(), hourLive: true }),
 }))
 
 // The pier stands from the start: the ship lands at it before anything else is built.
@@ -168,10 +150,10 @@ export function selectActiveQuest(s: Pick<StoryState, 'phase' | 'beat'>) {
 }
 
 /**
- * The scroll tour is running (sailing in and the stops): the page scrolls, the
- * camera follows the story and the toolbar is hidden. The ending and free play
- * come after.
+ * The scroll tour is running (from sailing in to the contact card): the page
+ * scrolls, the camera follows the story and the toolbar is hidden. Free play
+ * comes after, behind "Explore the island".
  */
 export function isTourActive(s: Pick<StoryState, 'phase'> = useStoryStore.getState()) {
-  return s.phase === 'intro' || s.phase === 'questing'
+  return s.phase !== 'done'
 }

@@ -10,13 +10,11 @@ import { StoryHud } from './ui/story/StoryHud'
 import { Dialogue } from './ui/story/Dialogue'
 import { Hero } from './ui/story/Hero'
 import { ScrollTrack } from './ui/story/ScrollTrack'
-import { useEndingDirector } from './story/useEndingDirector'
 import { useCrewDirector } from './story/useCrewDirector'
 
 const showStats = new URLSearchParams(window.location.search).has('stats')
 
 export default function App() {
-  useEndingDirector()
   useCrewDirector()
 
   return (
