@@ -8,6 +8,8 @@ import { hideBoot } from './boot'
 import { Toolbar } from './ui/Toolbar'
 import { StoryHud } from './ui/story/StoryHud'
 import { Dialogue } from './ui/story/Dialogue'
+import { Hero } from './ui/story/Hero'
+import { ScrollTrack } from './ui/story/ScrollTrack'
 import { useQuestWatcher } from './story/useQuestWatcher'
 import { useEndingDirector } from './story/useEndingDirector'
 import { useCrewDirector } from './story/useCrewDirector'
@@ -23,19 +25,23 @@ export default function App() {
 
   return (
     <>
-      <Canvas
-        frameloop="demand"
-        shadows={{ type: PCFShadowMap }}
-        dpr={MAX_DPR}
-        camera={{ position: HOME_POSITION.toArray(), fov: 40, near: 0.1, far: 300 }}
-        gl={{ antialias: true, toneMapping: NeutralToneMapping, powerPreference: 'high-performance' }}
-        onContextMenu={(e) => e.preventDefault()}
-        // Fade the loading screen once a couple of frames have been drawn.
-        onCreated={() => requestAnimationFrame(() => requestAnimationFrame(hideBoot))}
-      >
-        <Scene />
-        {showStats && <Stats />}
-      </Canvas>
+      <ScrollTrack />
+      <div className="stage">
+        <Canvas
+          frameloop="demand"
+          shadows={{ type: PCFShadowMap }}
+          dpr={MAX_DPR}
+          camera={{ position: HOME_POSITION.toArray(), fov: 40, near: 0.1, far: 300 }}
+          gl={{ antialias: true, toneMapping: NeutralToneMapping, powerPreference: 'high-performance' }}
+          onContextMenu={(e) => e.preventDefault()}
+          // Fade the loading screen once a couple of frames have been drawn.
+          onCreated={() => requestAnimationFrame(() => requestAnimationFrame(hideBoot))}
+        >
+          <Scene />
+          {showStats && <Stats />}
+        </Canvas>
+      </div>
+      <Hero />
       <Dialogue placement="ship" />
       <Toolbar />
       <StoryHud />

@@ -131,6 +131,72 @@
   height: 100%;
 }
 
+/* ---------- Hero: the top of the page, before the ship sails in ---------- */
+
+.hero {
+  position: fixed;
+  left: 50%;
+  bottom: max(7vh, calc(20px + env(safe-area-inset-bottom)));
+  z-index: 2;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 16px 28px 18px;
+  border-radius: 22px;
+  background: rgba(255, 250, 242, 0.93);
+  box-shadow: 0 10px 30px rgba(120, 80, 40, 0.16);
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  transform: translateX(-50%);
+  transition:
+    opacity 0.35s,
+    transform 0.35s;
+}
+
+.hero.away {
+  opacity: 0;
+  transform: translate(-50%, 16px);
+}
+
+.hero h1 {
+  margin: 0;
+  color: #3d2f23;
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.hero-role {
+  margin: 6px 0 0;
+  color: #2f8f98;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero-hint {
+  margin: 12px 0 0;
+  color: #6b5644;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.hero-hint span {
+  display: inline-block;
+  animation: hero-nudge 1.4s ease-in-out infinite;
+}
+
+@keyframes hero-nudge {
+  50% { transform: translateY(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-hint span { animation: none; }
+  .hero { transition: none; }
+}
+
 /* ---------- Wide screens: the bubble floats beside the ship (moved by shipBubble.ts) ---------- */
 
 .dlg-ship {

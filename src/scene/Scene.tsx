@@ -16,6 +16,7 @@ import { Waterfall } from './Waterfall'
 import { Crew } from './story/Crew'
 import { Landmarks } from './story/Landmarks'
 import { QuestGhost } from './story/QuestGhost'
+import { ScrollDriver } from './story/ScrollDriver'
 import { Ship } from './story/Ship'
 import { useBuilt } from '../store/useStoryStore'
 
@@ -25,6 +26,7 @@ export function Scene() {
   const falls = useBuilt('falls')
   return (
     <>
+      <ScrollDriver />
       <Lighting />
       <Sky />
 

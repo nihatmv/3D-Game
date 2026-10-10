@@ -5,11 +5,20 @@
 }
 
 html,
-body,
-#root {
+body {
   margin: 0;
   width: 100%;
-  height: 100%;
+}
+
+/* The island stays put; the page scrolls past it (ui/story/ScrollTrack). */
+.stage {
+  position: fixed;
+  inset: 0;
+}
+
+/* Free play: the wheel and fingers belong to the camera and tools, not the page. */
+html:not(.scroll-mode),
+html:not(.scroll-mode) body {
   overflow: hidden;
 }
 
@@ -24,4 +33,10 @@ canvas {
   touch-action: none;
   -webkit-touch-callout: none;
   user-select: none;
+}
+
+/* During the tour a finger on the island scrolls the story. */
+html.scroll-mode canvas {
+  /* Over the inline style OrbitControls puts on the canvas. */
+  touch-action: pan-y !important;
 }

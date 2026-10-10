@@ -4,8 +4,9 @@ import { Group, Vector3 } from 'three'
 import { useStoryStore } from '../../store/useStoryStore'
 import { findPier } from '../../story/landmarks'
 import { QUESTS } from '../../story/quests'
-import { ARRIVE_PATH, LAND_SECONDS, landingPath } from '../../story/shipPath'
-import { wake } from '../perf'
+import { scroll } from '../../story/scroll'
+import { ARRIVE_PATH, landingPath } from '../../story/shipPath'
+import { progressIn, segmentOf } from '../../story/timeline'
 import { PIER_LENGTH } from './landmarkGeometry'
 import { makeShipGeometry } from './shipGeometry'
 import { setShipScreen } from '../../ui/story/shipBubble'
@@ -17,7 +18,10 @@ const screen = new Vector3()
 /** Height above the waterline the speech bubble points at (mid-sails). */
 const BUBBLE_ANCHOR_Y = 1.1
 
-const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)
+/** Under way from the first bit of scrolling, slowing into the berth. */
+const easeOut = (t: number) => 1 - (1 - t) ** 2
+
+const SAIL = segmentOf('sail')
 
 /** Same swell as the ocean vertex shader, so the ship rides the waves. */
 function swell(x: number, z: number, t: number) {
@@ -28,34 +32,29 @@ function swell(x: number, z: number, t: number) {
 }
 
 /**
- * The visitor's ship: sails in and ties up alongside the pier (landingPath),
- * which stands from the start, then bobs there for the rest of the story.
+ * The visitor's ship: the first stretch of scrolling sails it in along
+ * landingPath to the pier, which stands from the start (and back out again on
+ * the way up); after that it bobs alongside for the rest of the story.
  * One merged Lambert mesh, no shadow casting, so it never forces a shadow redraw.
  */
 export function Ship() {
   const group = useRef<Group>(null)
   const geometry = useMemo(() => makeShipGeometry(), [])
   useEffect(() => () => geometry.dispose(), [geometry])
-  const progress = useRef(0)
   const path = useMemo(() => {
     const pier = findPier(useStoryStore.getState().placed, QUESTS)
     return pier ? landingPath(pier.x, pier.z, PIER_LENGTH) : ARRIVE_PATH
   }, [])
 
-  useFrame((state, rawDt) => {
+  useFrame((state) => {
     const g = group.current
     if (!g) return
-    // Loose clamp: arrival should take real seconds even at a low frame rate.
-    const dt = Math.min(rawDt, 0.25)
     const t = state.clock.elapsedTime
     const story = useStoryStore.getState()
 
-    if (story.shipState === 'arriving') {
-      progress.current = Math.min(1, progress.current + dt / LAND_SECONDS)
-      if (progress.current >= 1) story.setShipState('docked')
-      else wake(200)
-    }
-    const u = easeInOut(progress.current)
+    const sailed = progressIn(SAIL, scroll.value)
+    if (sailed >= 1 && story.shipState === 'arriving') story.setShipState('docked')
+    const u = easeOut(sailed)
     path.getPointAt(u, point)
     path.getTangentAt(Math.min(u, 0.999), tangent)
 

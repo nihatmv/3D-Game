@@ -17,7 +17,6 @@ export const ARRIVE_PATH = new CatmullRomCurve3([
   new Vector3(-19, 0, -1.8),
 ])
 
-export const LAND_SECONDS = 4.5
 /**
  * Offset from the pier's centre line to the ship's, so the hull lies alongside.
  * Negative = the far side from the default camera, so the pier stays in view.
