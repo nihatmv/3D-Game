@@ -1,4 +1,46 @@
 {
+  "permissions": {
+    "ask": [
+      "Bash(rm *)",
+      "Bash(rmdir *)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git clean *)",
+      "Bash(git restore *)",
+      "Bash(git checkout -- *)",
+      "Bash(git branch -D *)",
+      "Bash(git commit *)",
+      "Bash(aws * create-*)",
+      "Bash(aws * delete-*)",
+      "Bash(aws * put-*)",
+      "Bash(aws * update-*)",
+      "Bash(aws * remove-*)",
+      "Bash(aws * modify-*)",
+      "Bash(aws * attach-*)",
+      "Bash(aws * detach-*)",
+      "Bash(aws * associate-*)",
+      "Bash(aws * disassociate-*)",
+      "Bash(aws * enable-*)",
+      "Bash(aws * disable-*)",
+      "Bash(aws * tag-*)",
+      "Bash(aws * untag-*)",
+      "Bash(aws * terminate-*)",
+      "Bash(aws * invoke*)",
+      "Bash(aws s3 cp *)",
+      "Bash(aws s3 mv *)",
+      "Bash(aws s3 rm *)",
+      "Bash(aws s3 rb *)",
+      "Bash(aws s3 mb *)",
+      "Bash(aws s3 sync *)",
+      "Bash(aws cloudformation deploy *)",
+      "Bash(aws organizations *)",
+      "Bash(aws sso-admin *)",
+      "Bash(aws freetier *)",
+      "Bash(aws account *)",
+      "Bash(aws configure set *)",
+      "Bash(npm run deploy*)"
+    ]
+  },
   "hooks": {
     "Stop": [
       {

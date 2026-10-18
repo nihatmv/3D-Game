@@ -28,6 +28,29 @@ npm run build    # type-check + production build
 
 Add `?stats` to the URL to show an FPS meter.
 
+## Deploy
+
+The site is hosted twice:
+
+- **Vercel** builds and deploys every push by itself.
+- **AWS** (S3 + CloudFront, https://d3097wwvlky50g.cloudfront.net) is deployed
+  by `.github/workflows/deploy-aws.yml` on every push to `main`. The workflow
+  signs in to AWS through GitHub's OIDC (the IAM role
+  `cozy-island-github-deploy`, allowed only for `main`), so no keys are stored
+  in GitHub. It can also be started by hand from the Actions tab.
+
+Both run `scripts/deploy-aws.sh` for the AWS copy. To deploy from your own
+machine instead, sign in with `aws login --profile island` and run:
+
+```bash
+npm run deploy:aws
+```
+
+The script builds with `VITE_SITE_URL` set to the CloudFront URL (for the
+link preview), uploads `dist/` to the bucket and refreshes CloudFront's cache.
+Files in `assets/` are cached for a year, since their names change on every
+build. `index.html` is never cached, so a deploy shows up at once.
+
 ## Controls
 
 | Key | Tool  | Click / drag                               | Shift + click           |

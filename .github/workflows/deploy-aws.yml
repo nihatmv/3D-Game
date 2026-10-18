@@ -1,0 +1,32 @@
+# Deploys the island to AWS (S3 + CloudFront) on every push to main.
+# Vercel deploys on its own; this only updates the AWS copy.
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write # lets the job sign in to AWS with GitHub's OIDC token, no stored keys
+  contents: read
+
+concurrency:
+  group: deploy-aws
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::051084216535:role/cozy-island-github-deploy
+          aws-region: eu-north-1
+      - run: npm run deploy:aws

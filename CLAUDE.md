@@ -21,6 +21,7 @@ No test suite. Verify with `npm run build` and, for visual work, a headless scre
 3. **Content lives in data files only** (`src/story/projects.ts`, `quests.ts`).
 4. **Work in phases and stop after each one.** Don't commit unless asked.
 5. **Keep this file current, but only when it matters.** See "Updating this file" below.
+6. **Ask before anything destructive or outward-facing**, in every permission mode: deleting files, creating, changing or deleting AWS resources, uploading to S3, `git push`/`reset`/`commit`. Say what will change and wait for a yes. `.claude/settings.json` enforces this with `permissions.ask` rules.
 
 ## Layout
 
@@ -67,6 +68,8 @@ Both 5-phase plans are done (base game, then the outreach pass: hero, fly-to car
 In progress: the crew pass (captain + 5 men land and build the island). Phases 1–4 done (ship lands first, bare island, five stops; crew steps off, runs to each site and hammers; ending at the cabin). Its timing pass is superseded by the scroll pass.
 
 The scroll pass is done too (5 phases: the tour is driven by page scroll instead of clicks; plan: `~/.claude/plans/hey-i-wanna-turn-merry-simon.md`). Free page scrolling let a trackpad flick skip buildings, and a version where each gesture played a whole step by itself did not feel like scrolling, so the story now follows the scroll but one gesture stops at the next building. All timing is the segment lengths at the top of `story/timeline.ts`. Not yet tried on a real trackpad or phone.
+
+In progress: an AWS copy (S3 + CloudFront, `eu-north-1`) alongside Vercel, which stays untouched. Plan: `~/.claude/plans/i-want-to-deploy-ancient-tulip.md`. The CLI is `~/aws-cli` (Homebrew can't build it on this Intel Mac). It runs as profile `island` = the IAM user `nihat`, signed in with `aws login` (re-run it when the session expires). Never use root, IAM Identity Center or AWS Organizations: the account is on the Free plan, and an Organization upgrades it and wipes the credits. Warn before anything that could change the plan. The AWS build needs `VITE_SITE_URL` set to the CloudFront URL. Done so far: budget, private bucket `cozy-island-site-051084216535`, OAC `E2AZW238RJO80N`, distribution `E2VCA7RGY05VO1` (`https://d3097wwvlky50g.cloudfront.net`), bucket policy (only that distribution may read). Live since 2026-10-18. `scripts/deploy-aws.sh` (`npm run deploy:aws`) builds, syncs and invalidates; `.github/workflows/deploy-aws.yml` runs it on every push to `main` through the GitHub OIDC role `cozy-island-github-deploy` (trusts only `main` of `nihatmv/3D-Game`; may only write that bucket and invalidate that distribution). Meanwhile there's a public throwaway bucket `nihat-cozy-island-test` (S3 website, HTTP, tagged `temporary=true`): delete it once CloudFront is live.
 
 ## Updating this file
 
