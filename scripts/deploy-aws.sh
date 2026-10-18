@@ -33,3 +33,7 @@ aws s3 cp dist/index.html "$B/index.html" --only-show-errors \
 aws cloudfront create-invalidation --distribution-id "$AWS_CF_DISTRIBUTION_ID" \
   --paths "/*" --query 'Invalidation.Id' --output text
 echo "Deployed to $AWS_SITE_URL"
+# In GitHub Actions, put the link on the run's summary page.
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+  echo "### 🏝️ Deployed to $AWS_SITE_URL" >> "$GITHUB_STEP_SUMMARY"
+fi
