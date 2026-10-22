@@ -1,4 +1,5 @@
 import { MeshDepthMaterial, MeshLambertMaterial, type Material } from 'three'
+import { isLowPower } from './perf'
 
 /** Share of the build each part takes to settle; the parts' starts are spread over the rest. */
 const SPAN = 0.22
@@ -14,6 +15,16 @@ export const piecesAt = (t: number) => Math.min(1, t / PIECES_BY)
 export function finishAt(t: number) {
   const k = Math.min(1, Math.max(0, (t - PIECES_BY) / (1 - PIECES_BY)))
   return k * k * (3 - 2 * k)
+}
+
+/**
+ * Whether a build's shadow, last drawn at `drawn` pieces, should be redrawn at
+ * `pieces`: every few frames (each one redraws the whole shadow map), coarser
+ * on slow machines, and always at either end.
+ */
+export function shadowDue(pieces: number, drawn: number) {
+  if (pieces === drawn) return false
+  return pieces === 0 || pieces === 1 || Math.abs(pieces - drawn) >= (isLowPower() ? 0.12 : 0.04)
 }
 
 /** Put the parts of a `build()` geometry in place by `progress` (see makeBuildMaterial), in any material's vertex shader. */
@@ -48,7 +59,7 @@ function buildUp<M extends Material>(material: M, progress: { value: number }, k
  * with the scroll costs nothing per frame; at 1 the mesh is exactly its geometry.
  * `depth` does the same for the shadow pass: set it as the mesh's
  * `customDepthMaterial` and the shadow is built along with it (call
- * `requestShadowUpdate()` when `progress` changes).
+ * `requestShadowUpdate()` when `progress` has moved on enough: shadowDue).
  */
 export function makeBuildMaterial(): { material: MeshLambertMaterial; depth: MeshDepthMaterial; progress: { value: number } } {
   const progress = { value: 0 }

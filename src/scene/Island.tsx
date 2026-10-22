@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { BufferGeometry, DataTexture, FloatType, Mesh, MeshLambertMaterial, NearestFilter, RedFormat } from 'three'
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh'
 import { useIslandStore } from '../store/useIslandStore'
+import { isTourActive, useStoryStore } from '../store/useStoryStore'
 import { GRID, ISLAND_BOTTOM, TILE_COUNT } from '../world/constants'
 import { buildTerrainGeometry } from '../world/terrainGeometry'
 import { requestShadowUpdate, wake } from './perf'
@@ -29,6 +30,7 @@ const OCEAN_SURFACE = ISLAND_BOTTOM - 0.2
  */
 export function Island() {
   const terrainVersion = useIslandStore((s) => s.terrainVersion)
+  const touring = useStoryStore((s) => isTourActive(s))
 
   const offsets = useMemo(() => {
     const tex = new DataTexture(new Float32Array(TILE_COUNT), GRID, GRID, RedFormat, FloatType)
@@ -67,10 +69,12 @@ export function Island() {
 
   const geometry = useMemo(() => {
     const { height, type, field } = useIslandStore.getState()
-    const geo = buildTerrainGeometry(height, type, field)
-    geo.computeBoundsTree()
-    return geo
+    return buildTerrainGeometry(height, type, field)
   }, [terrainVersion])
+  // The bounds tree is for the tools' raycasts. The tour has no tools, so its scripted digs skip it.
+  useEffect(() => {
+    if (!touring && !geometry.boundsTree) geometry.computeBoundsTree()
+  }, [geometry, touring])
 
   useEffect(() => () => {
     geometry.disposeBoundsTree()

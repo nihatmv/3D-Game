@@ -20,6 +20,7 @@ import { PALETTE, tileMin, topY } from '../world/constants'
 import { HIGHLAND, HIGHLAND_X, HIGHLAND_Z, DECOR_FALLS } from '../world/decor'
 import { idx } from '../world/grid'
 import { isLowPower } from './perf'
+import { warmMesh } from './warmup'
 import { NIGHT_PALETTE, SUNSET_PALETTE, tod } from './timeOfDay'
 
 /**
@@ -283,6 +284,34 @@ function material(vertexShader: string, fragmentShader: string, extra: Record<st
   })
 }
 
+/** The falls' sheet (`len` long in its uv), foam, spring and mist. */
+function fallMaterials(len: number) {
+  return {
+    sheet: material(sheetVertex, sheetFragment, {
+      uLen: { value: len },
+      uColor: { value: WATER_DAY.clone() },
+      uDeep: { value: new Color(PALETTE.deepWater) },
+    }),
+    foam: material(uvVertex, foamFragment, {}),
+    spring: material(uvVertex, springFragment, {
+      uColor: { value: WATER_DAY.clone() },
+      uDeep: { value: new Color(PALETTE.deepWater) },
+    }),
+    mist: material(mistVertex, mistFragment, {}),
+  }
+}
+
+/** Stand-ins for ShaderWarmup. */
+export function waterfallWarmups() {
+  const mats = fallMaterials(1)
+  return [
+    warmMesh(mats.sheet, { geometry: sheetGeometry(0) }),
+    warmMesh(mats.foam, { geometry: foamGeometry(0) }),
+    warmMesh(mats.spring, { geometry: springGeometry() }),
+    warmMesh(mats.mist, { geometry: mistGeometry(0) }),
+  ]
+}
+
 export function Waterfall() {
   // The pool is locked, so its level never changes after load.
   const poolY = useMemo(() => {
@@ -295,22 +324,7 @@ export function Waterfall() {
   const foam = useMemo(() => foamGeometry(poolY + 0.012), [poolY])
   const mist = useMemo(() => mistGeometry(poolY), [poolY])
   const spring = useMemo(() => springGeometry(), [])
-  const mats = useMemo(() => {
-    const len = sheet.getAttribute('uv').getY(sheet.getAttribute('uv').count - 1)
-    return {
-      sheet: material(sheetVertex, sheetFragment, {
-        uLen: { value: len },
-        uColor: { value: WATER_DAY.clone() },
-        uDeep: { value: new Color(PALETTE.deepWater) },
-      }),
-      foam: material(uvVertex, foamFragment, {}),
-      spring: material(uvVertex, springFragment, {
-        uColor: { value: WATER_DAY.clone() },
-        uDeep: { value: new Color(PALETTE.deepWater) },
-      }),
-      mist: material(mistVertex, mistFragment, {}),
-    }
-  }, [sheet])
+  const mats = useMemo(() => fallMaterials(sheet.getAttribute('uv').getY(sheet.getAttribute('uv').count - 1)), [sheet])
 
   useEffect(
     () => () => {

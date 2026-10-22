@@ -7,6 +7,7 @@ import { Island } from './Island'
 import { Ocean } from './Ocean'
 import { Particles } from './Particles'
 import { PerfGovernor } from './PerfGovernor'
+import { ShaderWarmup } from './ShaderWarmup'
 import { Plants } from './Plants'
 import { Sky } from './Sky'
 import { Ponds } from './Ponds'
@@ -31,6 +32,7 @@ export function Scene() {
       <Sky />
 
       <PerfGovernor />
+      <ShaderWarmup />
       <CameraRig />
 
       <Interaction>

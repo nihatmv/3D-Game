@@ -16,9 +16,10 @@ import { HALF, topY } from '../world/constants'
 import { DECOR_CABIN, HIGHLAND, HIGHLAND_X, HIGHLAND_Z } from '../world/decor'
 import { CHIMNEY_TOP, cabinGeometry, cabinLightsGeometry } from './decorGeometry'
 import { riseOfKind } from '../story/scrollDirector'
-import { finishAt, makeBuildMaterial, piecesAt } from './buildMaterial'
+import { finishAt, makeBuildMaterial, piecesAt, shadowDue } from './buildMaterial'
 import { isLowPower, requestShadowUpdate } from './perf'
 import { tod } from './timeOfDay'
+import { warmMesh } from './warmup'
 
 /**
  * The old wooden cabin on the highland shelf (DECOR_CABIN), mounted once its
@@ -85,24 +86,27 @@ const GLASS_DAY = new Color('#5d6f78')
 const GLASS_EVE = new Color('#ffcf85')
 const GLOW = new Color('#ffb257')
 
+const lightMaterial = () => new MeshLambertMaterial({ color: GLASS_DAY.clone(), emissive: GLOW, emissiveIntensity: 0 })
+const smokeMaterial = () =>
+  new ShaderMaterial({
+    vertexShader: smokeVertex,
+    fragmentShader: smokeFragment,
+    transparent: true,
+    depthWrite: false,
+    fog: true,
+    uniforms: UniformsUtils.merge([UniformsLib.fog, { uTime: { value: 0 }, uColor: { value: new Color('#f4efe8') } }]),
+  })
+
+/** Stand-ins for ShaderWarmup: the windows and the smoke (the logs are a landmark's build material). */
+export const cabinWarmups = () => [warmMesh(lightMaterial(), { geometry: cabinLightsGeometry() }), warmMesh(smokeMaterial(), { geometry: smokeGeometry() })]
+
 export function Cabin() {
   const body = useMemo(() => cabinGeometry(), [])
   const lights = useMemo(() => cabinLightsGeometry(), [])
   const smoke = useMemo(() => smokeGeometry(), [])
   const { material: bodyMat, depth: bodyDepth, progress } = useMemo(makeBuildMaterial, [])
-  const lightMat = useMemo(() => new MeshLambertMaterial({ color: GLASS_DAY.clone(), emissive: GLOW, emissiveIntensity: 0 }), [])
-  const smokeMat = useMemo(
-    () =>
-      new ShaderMaterial({
-        vertexShader: smokeVertex,
-        fragmentShader: smokeFragment,
-        transparent: true,
-        depthWrite: false,
-        fog: true,
-        uniforms: UniformsUtils.merge([UniformsLib.fog, { uTime: { value: 0 }, uColor: { value: new Color('#f4efe8') } }]),
-      }),
-    [],
-  )
+  const lightMat = useMemo(lightMaterial, [])
+  const smokeMat = useMemo(smokeMaterial, [])
   useEffect(
     () => () => {
       for (const g of [body, lights, smoke]) g.dispose()
@@ -123,13 +127,10 @@ export function Cabin() {
     if (t !== risen.current) {
       risen.current = t
       const pieces = piecesAt(t)
-      if (pieces !== progress.value || shadowAt.current < 0) {
-        progress.value = pieces
-        // On a slow machine the shadow follows in coarser steps, but always to the end.
-        if (!isLowPower() || Math.abs(pieces - shadowAt.current) > 0.06 || pieces === 0 || pieces === 1) {
-          shadowAt.current = pieces
-          requestShadowUpdate()
-        }
+      progress.value = pieces
+      if (shadowDue(pieces, shadowAt.current)) {
+        shadowAt.current = pieces
+        requestShadowUpdate()
       }
       if (lightsMesh.current) lightsMesh.current.visible = pieces >= 1
     }

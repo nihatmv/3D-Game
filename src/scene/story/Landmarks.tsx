@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import {
@@ -26,10 +26,11 @@ import { PROJECTS } from '../../story/projects'
 import { QUESTS, type LandmarkKind, type Quest } from '../../story/quests'
 import { riseOf } from '../../story/scrollDirector'
 import { ProjectMedia } from '../../ui/story/ProjectBody'
-import { finishAt, makeBuildMaterial, piecesAt } from '../buildMaterial'
+import { finishAt, makeBuildMaterial, piecesAt, shadowDue } from '../buildMaterial'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { tod } from '../timeOfDay'
 import { emit } from '../puffs'
+import { warmMesh } from '../warmup'
 import { LAMP_R, LAMP_Y, PIER_DECK_Y, PIER_LENGTH, isScenery, landmarkGeometry } from './landmarkGeometry'
 import { setLandmarkHovered } from './landmarkHover'
 
@@ -43,16 +44,35 @@ type Life = { value: number }
 
 const BEAM_OPACITY = 0.16
 
+// What lives on the landmarks, made here so ShaderWarmup can compile the same shaders ahead (landmarkWarmups).
+const lampMaterial = () => new MeshBasicMaterial({ color: '#fff3b8' })
+const coneMaterial = () =>
+  new MeshBasicMaterial({ color: '#fff1c2', transparent: true, opacity: BEAM_OPACITY, depthWrite: false, side: DoubleSide, blending: AdditiveBlending })
+const rippleMaterial = () => new MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false })
+const wingMaterial = () => new MeshBasicMaterial({ side: DoubleSide })
+const flyMaterial = () =>
+  new MeshBasicMaterial({ color: '#fff2a0', transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false, toneMapped: false })
+
+/** Stand-ins for ShaderWarmup: a landmark being built (and its shadow), and what comes to life on it. */
+export function landmarkWarmups() {
+  const { material, depth } = makeBuildMaterial()
+  return [
+    warmMesh(material, { depth }),
+    warmMesh(lampMaterial()),
+    warmMesh(coneMaterial()),
+    warmMesh(rippleMaterial()),
+    warmMesh(wingMaterial(), { geometry: wingGeometry(), instanced: true, colored: true }),
+    warmMesh(flyMaterial(), { instanced: true }),
+  ]
+}
+
 /** Two soft light cones sweeping around the lamp (hidden on slow machines). */
 function LighthouseBeam({ life }: { life: Life }) {
   const ref = useRef<Group>(null)
   const lamp = useRef<Mesh>(null)
   const cones = useRef<Group>(null)
-  const coneMat = useMemo(
-    () => new MeshBasicMaterial({ color: '#fff1c2', transparent: true, opacity: BEAM_OPACITY, depthWrite: false, side: DoubleSide, blending: AdditiveBlending }),
-    [],
-  )
-  useEffect(() => () => coneMat.dispose(), [coneMat])
+  const [lampMat, coneMat] = useMemo(() => [lampMaterial(), coneMaterial()], [])
+  useEffect(() => () => (lampMat.dispose(), coneMat.dispose()), [lampMat, coneMat])
   useFrame((state) => {
     const t = state.clock.elapsedTime
     if (ref.current) ref.current.rotation.y = t * 0.7
@@ -63,9 +83,8 @@ function LighthouseBeam({ life }: { life: Life }) {
   })
   return (
     <group ref={ref} position-y={LAMP_Y}>
-      <mesh ref={lamp} raycast={() => null}>
+      <mesh ref={lamp} material={lampMat} raycast={() => null}>
         <sphereGeometry args={[LAMP_R, 10, 8]} />
-        <meshBasicMaterial color="#fff3b8" />
       </mesh>
       <group ref={cones}>
         {[0, Math.PI].map((a) => (
@@ -106,10 +125,7 @@ const RIPPLE_SECONDS = 2.4
 /** Rings that spread over the pond like sound waves; faster and wider while Cue is listening. */
 function PondRipples({ life }: { life: Life }) {
   const rings = useRef<(Mesh | null)[]>([])
-  const materials = useMemo(
-    () => Array.from({ length: RIPPLES }, () => new MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false })),
-    [],
-  )
+  const materials = useMemo(() => Array.from({ length: RIPPLES }, rippleMaterial), [])
   useEffect(() => () => materials.forEach((m) => m.dispose()), [materials])
   useFrame((state) => {
     const listening = useDemoStore.getState().cue === 'listening'
@@ -211,9 +227,8 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
     progress.value = pieces
     alive.value = finishAt(t)
     if (life.current) life.current.visible = alive.value > 0
-    // The shadow follows the pieces; on a slow machine in coarser steps, but always to the end.
-    const step = Math.abs(pieces - shadowAt.current)
-    if (step > 0 && (!isLowPower() || step > 0.06 || pieces === 0 || pieces === 1)) {
+    // The shadow follows the pieces, a few frames apart.
+    if (shadowDue(pieces, shadowAt.current)) {
       shadowAt.current = pieces
       requestShadowUpdate()
     }
@@ -315,9 +330,11 @@ function GroveLife({ life }: { life: Life }) {
   const wings = useRef<InstancedMesh>(null)
   const flies = useRef<InstancedMesh>(null)
   const [wingGeo, flyGeo] = useMemo(() => [wingGeometry(), new IcosahedronGeometry(0.045, 0)], [])
-  useEffect(() => () => (wingGeo.dispose(), flyGeo.dispose()), [wingGeo, flyGeo])
+  const [wingMat, flyMat] = useMemo(() => [wingMaterial(), flyMaterial()], [])
+  useEffect(() => () => (wingGeo.dispose(), flyGeo.dispose(), wingMat.dispose(), flyMat.dispose()), [wingGeo, flyGeo, wingMat, flyMat])
 
-  useEffect(() => {
+  // Before the first frame: drawn once without its colours, the wings would compile a second shader.
+  useLayoutEffect(() => {
     const w = wings.current
     if (!w) return
     const c = new Color()
@@ -363,12 +380,8 @@ function GroveLife({ life }: { life: Life }) {
 
   return (
     <>
-      <instancedMesh ref={wings} args={[wingGeo, undefined, BUTTERFLIES.length * 2]} raycast={() => null} frustumCulled={false}>
-        <meshBasicMaterial side={DoubleSide} />
-      </instancedMesh>
-      <instancedMesh ref={flies} args={[flyGeo, undefined, FIREFLIES.length]} raycast={() => null} frustumCulled={false}>
-        <meshBasicMaterial color="#fff2a0" transparent opacity={0.9} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
-      </instancedMesh>
+      <instancedMesh ref={wings} args={[wingGeo, wingMat, BUTTERFLIES.length * 2]} raycast={() => null} frustumCulled={false} />
+      <instancedMesh ref={flies} args={[flyGeo, flyMat, FIREFLIES.length]} raycast={() => null} frustumCulled={false} />
     </>
   )
 }

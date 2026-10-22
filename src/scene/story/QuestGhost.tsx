@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { AdditiveBlending, Group, MeshBasicMaterial, ShaderMaterial } from 'three'
+import { AdditiveBlending, Group, MeshBasicMaterial, MeshLambertMaterial, ShaderMaterial } from 'three'
 import { useIslandStore } from '../../store/useIslandStore'
 import { selectActiveQuest, useStoryStore } from '../../store/useStoryStore'
 import { tilesInArea, type Area } from '../../story/quests'
 import { HALF, SEA_Y, surfaceY } from '../../world/constants'
 import { stackHeight } from '../../world/stones'
+import { warmMesh } from '../warmup'
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -62,6 +63,20 @@ function areaStack(a: Area): number {
 
 const BEAM_H = 5
 
+const ringMaterial = () =>
+  new ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uOpacity: { value: 0 } },
+  })
+const beamMaterial = () => new MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending })
+const markerMaterial = () => new MeshLambertMaterial({ color: '#ffc861', emissive: '#f0a040', emissiveIntensity: 0.9, flatShading: true })
+
+/** Stand-ins for ShaderWarmup: the ring, the light column and the marker. */
+export const ghostWarmups = () => [warmMesh(ringMaterial()), warmMesh(beamMaterial()), warmMesh(markerMaterial())]
+
 /**
  * Glow over the stop the crew is heading to or starting on: a ring, a soft
  * light column and a bobbing marker. It only marks the spot (the scroll does
@@ -77,23 +92,9 @@ export function QuestGhost() {
   const group = useRef<Group>(null)
   const marker = useRef<Group>(null)
 
-  const material = useMemo(
-    () =>
-      new ShaderMaterial({
-        vertexShader,
-        fragmentShader,
-        transparent: true,
-        depthWrite: false,
-        uniforms: { uTime: { value: 0 }, uOpacity: { value: 0 } },
-      }),
-    [],
-  )
-  useEffect(() => () => material.dispose(), [material])
-  const beam = useMemo(
-    () => new MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending }),
-    [],
-  )
-  useEffect(() => () => beam.dispose(), [beam])
+  // Kept from stop to stop (the group below is remade at each one).
+  const [material, beam, marking] = useMemo(() => [ringMaterial(), beamMaterial(), markerMaterial()], [])
+  useEffect(() => () => (material.dispose(), beam.dispose(), marking.dispose()), [material, beam, marking])
 
   // Fade in afresh at each new spot.
   useEffect(() => {
@@ -132,9 +133,8 @@ export function QuestGhost() {
         <cylinderGeometry args={[r * 0.55, r * 0.75, BEAM_H, 20, 1, true]} />
       </mesh>
       <group ref={marker}>
-        <mesh rotation-x={Math.PI} scale={[0.36, 0.56, 0.36]} raycast={() => null}>
+        <mesh rotation-x={Math.PI} scale={[0.36, 0.56, 0.36]} material={marking} raycast={() => null}>
           <octahedronGeometry args={[1, 0]} />
-          <meshLambertMaterial color="#ffc861" emissive="#f0a040" emissiveIntensity={0.9} flatShading />
         </mesh>
       </group>
     </group>
