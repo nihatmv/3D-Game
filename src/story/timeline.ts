@@ -2,7 +2,7 @@ import { TOUR } from './quests'
 
 /**
  * The story, start to end, as one line of progress from 0 to 1: which stretch
- * of it plays what, and the stops no single gesture can scroll past (see
+ * of it plays what, and the stops where the story slows and settles (see
  * scroll.ts). Pure data built from TOUR, so reordering stops or retiming the
  * tour never touches scene code.
  */
@@ -12,18 +12,18 @@ export type Part = 'sail' | 'land' | 'walk' | 'build' | 'card' | 'gather' | 'sun
 /** One stretch of the page; `from`/`to` are scroll progress (0..1). `stop` indexes TOUR, -1 outside the stops. */
 export type Segment = { part: Part; stop: number; from: number; to: number }
 
-/** Seconds one unit of length takes when a step is played (keys, the on-screen hints) instead of scrolled. */
-export const SECONDS_PER_UNIT = 2.6
+/** Seconds one unit of length takes to play. */
+export const SECONDS_PER_UNIT = 2
 
-// Lengths are screen heights of scrolling. A building (card to card) is about 1.8 screens:
-// the walk, the build piece by piece over several turns of the wheel, the card.
-// About 12 screens in all: some 25 s of scrolling at an easy pace, which with five cards
-// to read makes a tour of 60-90 s.
+// Lengths are units of story (they were screen heights of scrolling when the page scrolled
+// it; only their ratios and SECONDS_PER_UNIT matter now). A building, card to card, is 1.75:
+// the walk, the build piece by piece, the card, about 3.5 s. Every step plays in 3-3.5 s,
+// some 25 s in all, which with five cards to read makes a tour of 60-90 s.
 const SAIL = 0.9
 const LAND = 0.6
 const WALK = 0.4
 const BUILD = 0.95
-/** One gesture ends in the middle of each card's stretch: half of this settles onto the card, half leaves it. */
+/** The stop sits in the middle of each card's stretch: half of this settles onto the card, half leaves it. */
 const CARD = 0.4
 const GATHER = 0.4
 const SUNSET = 0.6
@@ -42,7 +42,7 @@ const lengths: Array<readonly [Part, number, number]> = [
   ['contact', -1, CONTACT],
 ]
 
-/** The whole story's length, in screen heights of scrolling. */
+/** The whole story's length, in units of story. */
 export const SCREENS = lengths.reduce((sum, [, , len]) => sum + len, 0)
 
 export const SEGMENTS: Segment[] = []
@@ -98,7 +98,7 @@ export function riseAt(stop: number, value: number): number {
 export const ASHORE_AT = 0.9
 
 /**
- * Where one gesture has to end: the top, the landing (crew on the beach, the
+ * Where the story rests: the top, the landing (crew on the beach, the
  * captain's greeting up), each building standing with its card up, and the
  * contact card at the end.
  */
