@@ -37,6 +37,7 @@ export const isStepping = () => move !== null
 /** Show stop `i` at once (the HUD's dots and Skip, a returning visitor). Whatever lies between is built on the way. */
 export function jumpToStop(i: number) {
   move = null
+  useStoryStore.getState().setLeaving(-1)
   scroll.value = STOPS[Math.min(STOPS.length - 1, Math.max(0, i))]
   report()
   wake(300)
@@ -56,6 +57,7 @@ export function stepBy(dir: 1 | -1): boolean {
     return true
   }
   move = { from: scroll.value, to, at: 0, seconds: secondsBetween(scroll.value, to) }
+  useStoryStore.getState().setLeaving(STOPS.findIndex((s) => Math.abs(s - scroll.value) <= AT))
   wake(300)
   return true
 }
@@ -77,7 +79,10 @@ export function stepScroll(dt: number): boolean {
   move.at += dt
   const k = Math.min(1, move.at / move.seconds)
   scroll.value = k < 1 ? move.from + (move.to - move.from) * pace(k) : move.to
-  if (k >= 1) move = null
+  if (k >= 1) {
+    move = null
+    useStoryStore.getState().setLeaving(-1)
+  }
   report()
   return move !== null
 }

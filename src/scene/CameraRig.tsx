@@ -10,11 +10,25 @@ import { isTourActive, useStoryStore } from '../store/useStoryStore'
 import type { Placement } from '../story/landmarks'
 import { TOUR } from '../story/quests'
 import { scroll } from '../story/scroll'
-import { beatAt } from '../story/timeline'
+import { PLACE_AT, STOPS, beatAt, segmentOf, stopOfCard } from '../story/timeline'
 import { wake } from './perf'
 
 /** How far through the contact stretch the camera is back at the home view. */
 const PULL_BACK_BY = 0.5
+
+/**
+ * The tour's pans, in scroll progress: one to each stop, then one to the cabin
+ * for the sunset. Each starts the moment the visitor leaves a card (or the
+ * landing) and lands as the landmark starts going up, so the camera glides
+ * over the walk instead of whipping across in it.
+ */
+const PANS = [
+  ...TOUR.map((_, stop) => {
+    const build = segmentOf('build', stop)
+    return { from: STOPS[stop === 0 ? 1 : stopOfCard(stop - 1)], to: build.from + PLACE_AT * (build.to - build.from) }
+  }),
+  { from: STOPS[stopOfCard(TOUR.length - 1)], to: segmentOf('gather').to },
+]
 
 /** Free play: camera flight to a landmark and back. */
 const FLY_MS = 1000
@@ -93,7 +107,7 @@ function focusPose(at: Placement, home: Pose, camera: PerspectiveCamera, width: 
  * at the sun or moon but never under water.
  * Locked during the tour, where the view follows the scroll instead: the whole
  * island while the ship comes in, then a close-up of each stop, panning to the
- * next as the crew walks there, over to the cabin for the sunset, and back out
+ * next while the crew walks there (PANS), over to the cabin for the sunset, and back out
  * for the contact card.
  * In free play, when the story sets `focus`, it flies to that
  * landmark (FLY_MS) and back to where it was after.
@@ -159,25 +173,21 @@ export function CameraRig() {
       // Nothing to do while the scroll rests.
       if (shown.current.value === scroll.value && shown.current.tour === tour) return
       shown.current = { value: scroll.value, tour }
-      const { seg, t } = beatAt(scroll.value)
-      const stop = tour.stops[seg.stop]
-      let from = tour.home
-      let to = tour.home
-      if (seg.part === 'walk') {
-        from = tour.stops[seg.stop - 1] ?? tour.home
-        to = stop
-      } else if (seg.part === 'build' || seg.part === 'card') {
-        from = to = stop
-      } else if (seg.part === 'gather') {
-        from = tour.stops[tour.stops.length - 1]
-        to = tour.cabin
-      } else if (seg.part === 'sunset') {
-        from = to = tour.cabin
-      } else if (seg.part === 'contact') {
+      const value = scroll.value
+      const { seg, t } = beatAt(value)
+      // Pan k goes to the k-th stop (the cabin after the last), from the one before it.
+      const poses = [...tour.stops, tour.cabin]
+      let pan = -1
+      while (pan + 1 < PANS.length && value >= PANS[pan + 1].from) pan++
+      let from = pan > 0 ? poses[pan - 1] : tour.home
+      let to = pan >= 0 ? poses[pan] : tour.home
+      let e = pan >= 0 ? easeInOutCubic(Math.min(1, (value - PANS[pan].from) / (PANS[pan].to - PANS[pan].from))) : 0
+      if (seg.part === 'contact') {
+        // Back out to the whole island early in the last stretch, so the contact card has it behind it.
         from = tour.cabin
+        to = tour.home
+        e = easeInOutCubic(Math.min(1, t / PULL_BACK_BY))
       }
-      // Back out to the whole island early in the last stretch, so the contact card has it behind it.
-      const e = easeInOutCubic(seg.part === 'contact' ? Math.min(1, t / PULL_BACK_BY) : t)
       camera.position.lerpVectors(from.pos, to.pos, e)
       c.target.lerpVectors(from.target, to.target, e)
       c.update()

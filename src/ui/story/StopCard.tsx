@@ -1,6 +1,7 @@
 import { isTourActive, useStoryStore } from '../../store/useStoryStore'
 import { projectById } from '../../story/projects'
 import { TOUR } from '../../story/quests'
+import { stopOfCard } from '../../story/timeline'
 import { stepBy } from '../../story/scroll'
 import { PirateAvatar } from './PirateAvatar'
 import { ProjectLinks, ProjectMedia, ProjectResult } from './ProjectBody'
@@ -9,10 +10,13 @@ import { ProjectLinks, ProjectMedia, ProjectResult } from './ProjectBody'
  * The compact card that comes with the scroll once a stop's landmark stands:
  * the captain's line, a picture, the project's name, pitch and one result, and
  * its links. Details opens the full card (ProjectCard); scrolling on (or the
- * hint, which is a button) plays the story to the next stop.
+ * hint, which is a button) plays the story to the next stop, and the card
+ * slides away as it starts.
  */
 export function StopCard() {
   const quest = useStoryStore((s) => (isTourActive(s) && s.beat.part === 'card' && !s.openCard ? TOUR[s.beat.stop] : undefined))
+  // Scrolled on: the card slides away at once instead of waiting for the story to leave its stretch.
+  const leaving = useStoryStore((s) => s.beat.part === 'card' && s.leaving === stopOfCard(s.beat.stop))
   const openProject = useStoryStore((s) => s.openProject)
   const project = quest?.projectId ? projectById(quest.projectId) : undefined
   if (!quest || !project) return null
@@ -20,7 +24,7 @@ export function StopCard() {
   const cover = project.media ?? project.gallery?.[0] ?? project.shipped?.find((s) => s.image)?.image
 
   return (
-    <aside className="pf-card stop-card" key={project.id} aria-label={project.title}>
+    <aside className={`pf-card stop-card${leaving ? ' is-leaving' : ''}`} key={project.id} aria-label={project.title}>
       <div className="pf-captain">
         <span className="pf-captain-avatar" aria-hidden>
           <PirateAvatar />

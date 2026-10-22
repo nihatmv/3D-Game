@@ -395,6 +395,16 @@
   animation-delay: 0s;
 }
 
+.stop-card.is-leaving {
+  animation: card-out 0.22s ease-in both;
+  pointer-events: none;
+}
+
+@keyframes card-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+
 .stop-card .pf-captain {
   margin-right: 0;
 }
