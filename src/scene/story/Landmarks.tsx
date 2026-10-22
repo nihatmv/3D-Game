@@ -26,7 +26,7 @@ import { PROJECTS } from '../../story/projects'
 import { QUESTS, type LandmarkKind, type Quest } from '../../story/quests'
 import { riseOf } from '../../story/scrollDirector'
 import { ProjectMedia } from '../../ui/story/ProjectBody'
-import { makeBuildMaterial } from '../buildMaterial'
+import { finishAt, makeBuildMaterial, piecesAt } from '../buildMaterial'
 import { isLowPower, requestShadowUpdate, wake } from '../perf'
 import { tod } from '../timeOfDay'
 import { emit } from '../puffs'
@@ -38,26 +38,39 @@ const SONG_ID = demoOf('song')?.projectId
 /** Keep in-world labels under the story cards (z-index 3). */
 const LABEL_Z: [number, number] = [2, 0]
 
+/** How alive a landmark is (0..1, Landmark's finishing stretch): what lives on it grows and fades in with it. */
+type Life = { value: number }
+
+const BEAM_OPACITY = 0.16
+
 /** Two soft light cones sweeping around the lamp (hidden on slow machines). */
-function LighthouseBeam() {
+function LighthouseBeam({ life }: { life: Life }) {
   const ref = useRef<Group>(null)
+  const lamp = useRef<Mesh>(null)
   const cones = useRef<Group>(null)
+  const coneMat = useMemo(
+    () => new MeshBasicMaterial({ color: '#fff1c2', transparent: true, opacity: BEAM_OPACITY, depthWrite: false, side: DoubleSide, blending: AdditiveBlending }),
+    [],
+  )
+  useEffect(() => () => coneMat.dispose(), [coneMat])
   useFrame((state) => {
     const t = state.clock.elapsedTime
     if (ref.current) ref.current.rotation.y = t * 0.7
-    if (cones.current) cones.current.visible = !isLowPower()
+    // The lamp lights up, then the beam comes on.
+    lamp.current?.scale.setScalar(Math.max(0.001, Math.min(1, life.value * 1.6)))
+    coneMat.opacity = BEAM_OPACITY * Math.max(0, life.value * 1.6 - 0.6)
+    if (cones.current) cones.current.visible = !isLowPower() && coneMat.opacity > 0
   })
   return (
     <group ref={ref} position-y={LAMP_Y}>
-      <mesh raycast={() => null}>
+      <mesh ref={lamp} raycast={() => null}>
         <sphereGeometry args={[LAMP_R, 10, 8]} />
         <meshBasicMaterial color="#fff3b8" />
       </mesh>
       <group ref={cones}>
         {[0, Math.PI].map((a) => (
-          <mesh key={a} rotation={[0, a, Math.PI / 2]} position={[Math.cos(a) * 3.2, 0, -Math.sin(a) * 3.2]} raycast={() => null}>
+          <mesh key={a} rotation={[0, a, Math.PI / 2]} position={[Math.cos(a) * 3.2, 0, -Math.sin(a) * 3.2]} material={coneMat} raycast={() => null}>
             <coneGeometry args={[0.9, 6, 16, 1, true]} />
-            <meshBasicMaterial color="#fff1c2" transparent opacity={0.16} depthWrite={false} side={DoubleSide} blending={AdditiveBlending} />
           </mesh>
         ))}
       </group>
@@ -91,7 +104,7 @@ const RIPPLES = 3
 const RIPPLE_SECONDS = 2.4
 
 /** Rings that spread over the pond like sound waves; faster and wider while Cue is listening. */
-function PondRipples() {
+function PondRipples({ life }: { life: Life }) {
   const rings = useRef<(Mesh | null)[]>([])
   const materials = useMemo(
     () => Array.from({ length: RIPPLES }, () => new MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false })),
@@ -105,7 +118,7 @@ function PondRipples() {
       if (!ring) return
       const phase = (t + k / RIPPLES) % 1
       ring.scale.setScalar(0.2 + phase * (listening ? 2.0 : 1.2))
-      materials[k].opacity = (1 - phase) * (listening ? 0.85 : 0.55)
+      materials[k].opacity = (1 - phase) * (listening ? 0.85 : 0.55) * life.value
     })
     if (listening) wake(200)
   })
@@ -175,30 +188,37 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
   const body = useRef<Mesh>(null)
   const life = useRef<Group>(null)
   const risen = useRef(-1)
+  const shadowAt = useRef(-1)
+  const alive = useMemo<Life>(() => ({ value: 0 }), [])
   const geometry = landmarkGeometry(quest.landmark)
-  const { material, progress } = useMemo(makeBuildMaterial, [])
-  useEffect(() => () => material.dispose(), [material])
+  const { material, depth, progress } = useMemo(makeBuildMaterial, [])
+  useEffect(() => () => (material.dispose(), depth.dispose()), [material, depth])
   const openProject = useStoryStore((s) => s.openProject)
   const [hovered, setHovered] = useState(false)
   // Outside the tour only: there the cards come with the scroll.
   const canPreview = useStoryStore((s) => s.openCard === null && !isTourActive(s))
 
   // It is put together piece by piece with the scroll (and taken apart with it), in the
-  // material's shader; nothing to do while the scroll rests.
+  // material's shader, its shadow with it; then what lives on it (the lamp and its beam,
+  // ripples, butterflies) comes to life. Nothing to do while the scroll rests.
   useFrame(() => {
     const t = riseOf(quest.id)
     const was = risen.current
     if (t === was) return
     risen.current = t
-    progress.value = t
-    const done = t >= 1
-    if (done === was >= 1 && was >= 0) return
-    // Finished (or no longer): its shadow, and what lives on it (the lamp's beam, ripples, butterflies), come and go in one step.
-    if (body.current) body.current.castShadow = done
-    if (life.current) life.current.visible = done
-    requestShadowUpdate()
+    const pieces = piecesAt(t)
+    const wasPieces = piecesAt(Math.max(0, was))
+    progress.value = pieces
+    alive.value = finishAt(t)
+    if (life.current) life.current.visible = alive.value > 0
+    // The shadow follows the pieces; on a slow machine in coarser steps, but always to the end.
+    const step = Math.abs(pieces - shadowAt.current)
+    if (step > 0 && (!isLowPower() || step > 0.06 || pieces === 0 || pieces === 1)) {
+      shadowAt.current = pieces
+      requestShadowUpdate()
+    }
     // Celebrate the last piece going on (not a landmark found standing on load).
-    if (done && was >= 0) emit('sparkle', at.x, at.y + (quest.landmark === 'lighthouse' ? LAMP_Y : 0.6), at.z, 22)
+    if (pieces >= 1 && wasPieces < 1 && was >= 0) emit('sparkle', at.x, at.y + (quest.landmark === 'lighthouse' ? LAMP_Y : 0.6), at.z, 22)
   })
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => e.stopPropagation()
@@ -237,12 +257,20 @@ function Landmark({ quest, at }: { quest: Quest; at: Placement }) {
       }}
     >
       {/* Hidden meshes aren't drawn but still take raycasts (the scenery's click box). */}
-      <mesh ref={body} geometry={geometry} material={material} receiveShadow visible={!isScenery(quest.landmark)} />
+      <mesh
+        ref={body}
+        geometry={geometry}
+        material={material}
+        customDepthMaterial={depth}
+        castShadow={!isScenery(quest.landmark)}
+        receiveShadow
+        visible={!isScenery(quest.landmark)}
+      />
       <group ref={life} visible={false}>
-        {quest.landmark === 'lighthouse' && <LighthouseBeam />}
-        {quest.landmark === 'pondRipples' && <PondRipples />}
+        {quest.landmark === 'lighthouse' && <LighthouseBeam life={alive} />}
+        {quest.landmark === 'pondRipples' && <PondRipples life={alive} />}
         {quest.landmark === 'pondRipples' && SONG_ID && <SongBubble />}
-        {quest.landmark === 'bigTree' && <GroveLife />}
+        {quest.landmark === 'bigTree' && <GroveLife life={alive} />}
       </group>
       {quest.landmark === 'pondRipples' && <LakeHitArea quest={quest} at={at} />}
       {hovered && canPreview && <ProjectPreview quest={quest} />}
@@ -283,7 +311,7 @@ function wander(c: { r: number; h: number; v: number; p: number }, t: number, ou
  * dusk and night (hidden on slow machines). Two instanced meshes, no shadows; they
  * move on the frames that render anyway (no wake()).
  */
-function GroveLife() {
+function GroveLife({ life }: { life: Life }) {
   const wings = useRef<InstancedMesh>(null)
   const flies = useRef<InstancedMesh>(null)
   const [wingGeo, flyGeo] = useMemo(() => [wingGeometry(), new IcosahedronGeometry(0.045, 0)], [])
@@ -303,6 +331,8 @@ function GroveLife() {
   const ahead = useMemo(() => new Vector3(), [])
   useFrame((state) => {
     const t = state.clock.elapsedTime
+    // They flutter in from small as the grove comes to life.
+    const grown = Math.max(0.001, life.value)
     const w = wings.current
     if (w) {
       BUTTERFLIES.forEach((b, k) => {
@@ -312,7 +342,7 @@ function GroveLife() {
         const flap = 0.25 + 0.9 * Math.abs(Math.sin(t * 14 + b.p))
         for (const side of [1, -1]) {
           _q.setFromEuler(_e.set(0, heading + Math.PI / 2, side * flap, 'YXZ'))
-          _s.set(side, 1, 1)
+          _s.set(side * grown, grown, grown)
           w.setMatrixAt(2 * k + (side > 0 ? 0 : 1), _m.compose(_p, _q, _s))
         }
       })
@@ -325,7 +355,7 @@ function GroveLife() {
       FIREFLIES.forEach((c, k) => {
         wander(c, t, _p)
         const pulse = glow * (0.5 + 0.5 * Math.sin(t * (2 + (k % 3)) + c.p))
-        f.setMatrixAt(k, _m.compose(_p, _q.identity(), _s.setScalar(Math.max(0.05, pulse))))
+        f.setMatrixAt(k, _m.compose(_p, _q.identity(), _s.setScalar(Math.max(0.05, pulse) * grown)))
       })
       f.instanceMatrix.needsUpdate = true
     }

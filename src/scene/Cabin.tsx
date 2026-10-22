@@ -16,7 +16,7 @@ import { HALF, topY } from '../world/constants'
 import { DECOR_CABIN, HIGHLAND, HIGHLAND_X, HIGHLAND_Z } from '../world/decor'
 import { CHIMNEY_TOP, cabinGeometry, cabinLightsGeometry } from './decorGeometry'
 import { riseOfKind } from '../story/scrollDirector'
-import { makeBuildMaterial } from './buildMaterial'
+import { finishAt, makeBuildMaterial, piecesAt } from './buildMaterial'
 import { isLowPower, requestShadowUpdate } from './perf'
 import { tod } from './timeOfDay'
 
@@ -89,7 +89,7 @@ export function Cabin() {
   const body = useMemo(() => cabinGeometry(), [])
   const lights = useMemo(() => cabinLightsGeometry(), [])
   const smoke = useMemo(() => smokeGeometry(), [])
-  const { material: bodyMat, progress } = useMemo(makeBuildMaterial, [])
+  const { material: bodyMat, depth: bodyDepth, progress } = useMemo(makeBuildMaterial, [])
   const lightMat = useMemo(() => new MeshLambertMaterial({ color: GLASS_DAY.clone(), emissive: GLOW, emissiveIntensity: 0 }), [])
   const smokeMat = useMemo(
     () =>
@@ -106,31 +106,35 @@ export function Cabin() {
   useEffect(
     () => () => {
       for (const g of [body, lights, smoke]) g.dispose()
-      for (const m of [bodyMat, lightMat, smokeMat]) m.dispose()
+      for (const m of [bodyMat, bodyDepth, lightMat, smokeMat]) m.dispose()
     },
-    [body, lights, smoke, bodyMat, lightMat, smokeMat],
+    [body, lights, smoke, bodyMat, bodyDepth, lightMat, smokeMat],
   )
 
   const bodyMesh = useRef<Mesh>(null)
   const lightsMesh = useRef<Mesh>(null)
   const risen = useRef(-1)
+  const shadowAt = useRef(-1)
   const smokeMesh = useRef<Mesh>(null)
   const lastTod = useRef(-1)
   useFrame((_, dt) => {
-    // Log by log with the scroll (in the material's shader); the windows and its shadow once it stands.
+    // Log by log with the scroll (in the material's shader), its shadow with it; the windows once it stands.
     const t = riseOfKind('cabin')
     if (t !== risen.current) {
-      const was = risen.current
       risen.current = t
-      progress.value = t
-      if (t >= 1 !== was >= 1 || was < 0) {
-        if (bodyMesh.current) bodyMesh.current.castShadow = t >= 1
-        if (lightsMesh.current) lightsMesh.current.visible = t >= 1
-        requestShadowUpdate()
+      const pieces = piecesAt(t)
+      if (pieces !== progress.value || shadowAt.current < 0) {
+        progress.value = pieces
+        // On a slow machine the shadow follows in coarser steps, but always to the end.
+        if (!isLowPower() || Math.abs(pieces - shadowAt.current) > 0.06 || pieces === 0 || pieces === 1) {
+          shadowAt.current = pieces
+          requestShadowUpdate()
+        }
       }
+      if (lightsMesh.current) lightsMesh.current.visible = pieces >= 1
     }
     smokeMat.uniforms.uTime.value += dt
-    if (smokeMesh.current) smokeMesh.current.visible = t >= 1 && !isLowPower()
+    if (smokeMesh.current) smokeMesh.current.visible = finishAt(t) > 0 && !isLowPower()
     if (tod.version !== lastTod.current) {
       lastTod.current = tod.version
       const k = tod.glow
@@ -141,7 +145,7 @@ export function Cabin() {
 
   return (
     <group position={POS} rotation-y={ROT}>
-      <mesh ref={bodyMesh} geometry={body} material={bodyMat} receiveShadow raycast={() => null} />
+      <mesh ref={bodyMesh} geometry={body} material={bodyMat} customDepthMaterial={bodyDepth} castShadow receiveShadow raycast={() => null} />
       <mesh ref={lightsMesh} geometry={lights} material={lightMat} visible={false} raycast={() => null} />
       <mesh ref={smokeMesh} geometry={smoke} material={smokeMat} renderOrder={4} raycast={() => null} />
     </group>

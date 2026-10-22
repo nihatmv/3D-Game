@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Color, Euler, Matrix4, Quaternion, Vector3 } from 'three'
+import { Box3, BufferAttribute, BufferGeometry, Color, Euler, Matrix4, Quaternion, Vector3 } from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 
 /**
@@ -23,22 +23,41 @@ export type Part = {
 const m = new Matrix4()
 const q = new Quaternion()
 const v = new Vector3()
+const box = new Box3()
 
-/** Give every part its turn: lowest base first, and in the order they were added among equals. */
+/** A part's share of the build's time grows with its size (squared, like the area it shows); this keeps tiny ones from taking a whole turn each. */
+const MIN_WEIGHT = 0.01
+
+/**
+ * Give every part its turn: lowest base first, and in the order they were
+ * added among equals. Turns are spread by size, not count, so the build moves
+ * on at a steady pace: big pieces get the time, and a cluster of small ones
+ * (railings, a finial) lands in a quick run instead of dragging out the end.
+ */
 function orderParts(geo: BufferGeometry) {
   const part = geo.getAttribute('aPart') as BufferAttribute
-  const groups = new Map<string, { y: number; first: number; verts: number[] }>()
+  const position = geo.getAttribute('position') as BufferAttribute
+  const groups = new Map<string, { y: number; first: number; verts: number[]; weight: number }>()
   for (let i = 0; i < part.count; i++) {
     const key = `${part.getX(i).toFixed(3)},${part.getY(i).toFixed(3)},${part.getZ(i).toFixed(3)}`
     let g = groups.get(key)
-    if (!g) groups.set(key, (g = { y: part.getY(i), first: i, verts: [] }))
+    if (!g) groups.set(key, (g = { y: part.getY(i), first: i, verts: [], weight: 0 }))
     g.verts.push(i)
   }
+  for (const g of groups.values()) {
+    box.makeEmpty()
+    for (const i of g.verts) box.expandByPoint(v.fromBufferAttribute(position, i))
+    g.weight = Math.max(MIN_WEIGHT, box.getSize(v).lengthSq())
+  }
   const sorted = [...groups.values()].sort((a, b) => a.y - b.y || a.first - b.first)
-  sorted.forEach((g, rank) => {
-    const turn = sorted.length > 1 ? rank / (sorted.length - 1) : 0
+  // The last part starts at turn 1, so the turns run over everything before it.
+  const total = sorted.reduce((sum, g) => sum + g.weight, 0) - sorted[sorted.length - 1].weight
+  let before = 0
+  for (const g of sorted) {
+    const turn = total > 0 ? before / total : 0
     for (const i of g.verts) part.setW(i, turn)
-  })
+    before += g.weight
+  }
 }
 
 export function build(parts: Part[]): BufferGeometry {
